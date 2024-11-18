@@ -2,8 +2,61 @@
 // pages/index.js
 import { useState, useEffect } from "react";
 
+interface FormData {
+    arNumber: string;
+    severity: string;
+    priority: string;
+    requestorUsername: string;
+    assigneeUsername: string;
+    status: string;
+    dateFrom: string;
+    dateTo: string;
+    product: string;
+    subProduct: string;
+}
+
+interface UserDetails {
+  firstName: string;
+  lastName: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  email: string;
+  phoneNumber: string;
+}
+
+interface Ticket {
+  arNumber: string;
+  severity: string;
+  priority: string;
+  requestor: string;
+  assignee: string;
+  status: string;
+  dateCreated: string; // ISO date string
+  product: string;
+  subProduct: string;
+}
+
+const initialFormData: FormData = {
+  arNumber: "",
+  severity: "",
+  priority: "",
+  requestorUsername: "",
+  assigneeUsername: "",
+  status: "",
+  dateFrom: "",
+  dateTo: "",
+  product: "",
+  subProduct: "",
+};
+
+type Tab = "All" | "Open" | "Closed";
+const tabs: Tab[] = ["All", "Open", "Closed"];
+
+
 export default function Home() {
-    const [formData, setFormData]:any = useState({
+    const [formData, setFormData] = useState<FormData>({
         arNumber: "",
         severity: "",
         priority: "",
@@ -16,13 +69,14 @@ export default function Home() {
         subProduct: "",
     });
 
-    const [userDetails, setUserDetails]:any = useState(null);
+    const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
 
-    const [tickets, setTickets] = useState([]);
-    const [filteredTickets, setFilteredTickets] = useState([]);
-    const [activeTab, setActiveTab] = useState("All"); // Tabs: All, Open, Closed
+    
+    const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
+    const [activeTab, setActiveTab] = useState<Tab>("All");
 
-    const allTickets:any = [
+    const allTickets: Ticket[] = [
         {
             arNumber: "12345",
             severity: "High",
@@ -58,7 +112,7 @@ export default function Home() {
         },
     ];
 
-    const fetchedUserDetails:any = {
+    const fetchedUserDetails:UserDetails = {
       firstName: "John",
       lastName: "Doe",
       streetAddress: "123 Main Street",
@@ -73,18 +127,20 @@ export default function Home() {
         setTickets(allTickets);
         setFilteredTickets(allTickets);
       setUserDetails(fetchedUserDetails);
-    }, []);
+    },[]);
 
-    const handleInputChange = (e:any) => {
+    const handleInputChange = (
+      e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    ) => {
         const { name, value } = e.target;
-        setFormData((prev:any) => ({ ...prev, [name]: value }));
+        setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleSearch = (e:any) => {
+    const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        const results = tickets.filter((ticket:any) => {
-            return (
+        const results = tickets.filter((ticket) => {
+          return (
                 (!formData.arNumber || ticket.arNumber.includes(formData.arNumber)) &&
                 (!formData.severity || ticket.severity === formData.severity) &&
                 (!formData.priority || ticket.priority === formData.priority) &&
@@ -101,14 +157,14 @@ export default function Home() {
         setFilteredTickets(results);
     };
 
-    const handleTabChange = (tab:any) => {
+    const handleTabChange = (tab: Tab) => {
         setActiveTab(tab);
         if (tab === "All") {
             setFilteredTickets(tickets);
         } else if (tab === "Open") {
-            setFilteredTickets(tickets.filter((ticket:any) => ticket.status !== "Closed"));
+            setFilteredTickets(tickets.filter((ticket) => ticket.status !== "Closed"));
         } else if (tab === "Closed") {
-            setFilteredTickets(tickets.filter((ticket:any) => ticket.status === "Closed"));
+            setFilteredTickets(tickets.filter((ticket) => ticket.status === "Closed"));
         }
     };
 
@@ -132,7 +188,7 @@ export default function Home() {
                     </a>
                     <div className="absolute hidden group-hover:block bg-gray-700 text-gray-200 w-48 shadow-lg rounded mt-2">
                         <a href="#president" className="block px-4 py-2 hover:bg-gray-600">
-                            President's Message
+                            President&apos;s Message
                         </a>
                         <a href="#conduct" className="block px-4 py-2 hover:bg-gray-600">
                             Code of Conduct
@@ -320,7 +376,7 @@ export default function Home() {
 
             {/* Tabs for navigation */}
             <div className="flex justify-center space-x-4 mb-6">
-                {["All", "Open", "Closed"].map((tab) => (
+                {tabs.map((tab) => (
                     <button
                         key={tab}
                         className={`p-2 rounded text-sm font-semibold ${
@@ -435,7 +491,7 @@ export default function Home() {
                     <button
                         type="reset"
                         className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500"
-                        onClick={() => setFormData({})}
+                        onClick={() => setFormData(initialFormData)}
                     >
                         Clear
                     </button>
@@ -467,7 +523,7 @@ export default function Home() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredTickets.map((ticket:any, index) => (
+                            {filteredTickets.map((ticket, index) => (
                                 <tr key={index} className="hover:bg-gray-700">
                                     <td className="p-2 border border-gray-700">{ticket.arNumber}</td>
                                     <td className="p-2 border border-gray-700">{ticket.severity}</td>
