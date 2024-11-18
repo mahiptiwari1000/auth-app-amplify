@@ -1,5 +1,7 @@
 'use client';
 // pages/index.js
+import { signOut } from 'aws-amplify/auth';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect } from "react";
 
 interface FormData {
@@ -112,6 +114,8 @@ export default function Home() {
         },
     ];
 
+    const router = useRouter();
+
     const fetchedUserDetails:UserDetails = {
       firstName: "John",
       lastName: "Doe",
@@ -171,6 +175,16 @@ export default function Home() {
     return (
         <div className="min-h-screen bg-gray-900 text-gray-100 p-4">
             <h1 className="text-3xl font-bold text-center mb-6">Ticket Management</h1>
+
+            <button
+    onClick={async () => {
+        await signOut();
+        router.push('/signup');
+    }}
+    className="absolute top-4 right-4 px-4 py-2 bg-red-600 text-white rounded shadow-md hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-300"
+>
+    Sign Out
+</button>
 
            {/* Top Menu */}
 <nav className="bg-gray-800 text-gray-200 shadow-lg relative">
