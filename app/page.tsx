@@ -41,6 +41,7 @@ interface Ticket {
   subProduct: string;
 }
 
+
 const initialFormData: FormData = {
   arNumber: "",
   severity: "",
@@ -53,6 +54,19 @@ const initialFormData: FormData = {
   product: "",
   subProduct: "",
 };
+
+const initialNewTicket: Ticket = {
+  arNumber: "",
+  severity: "",
+  priority: "",
+  requestor: "",
+  assignee: "",
+  status: "Pending",
+  dateCreated: new Date().toISOString(),
+  product: "",
+  subProduct: "",
+};
+
 
 type Tab = "All" | "Open" | "Closed";
 const tabs: Tab[] = ["All", "Open", "Closed"];
@@ -78,6 +92,8 @@ export default function Home() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
     const [activeTab, setActiveTab] = useState<Tab>("All");
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newTicket, setNewTicket] = useState<Ticket>(initialNewTicket);
 
     const allTickets: Ticket[] = [
         {
@@ -141,6 +157,22 @@ export default function Home() {
       }
   };
 
+  useEffect(() => {
+    // Mock data for initial tickets
+    setTickets([
+      {
+        arNumber: "12345",
+        severity: "High",
+        priority: "P1",
+        requestor: "jdoe",
+        assignee: "asmith",
+        status: "In Progress",
+        dateCreated: "2024-01-15",
+        product: "Laptop",
+        subProduct: "Dell Inspiron",
+      },
+    ]);
+  }, []);
 
     useEffect(() => {
         setTickets(allTickets);
@@ -148,12 +180,25 @@ export default function Home() {
       setUserDetails(fetchedUserDetails);
     },[]);
 
+    const handleModalOpen = () => setIsModalOpen(true);
+    const handleModalClose = () => {
+      setIsModalOpen(false);
+      setNewTicket(initialNewTicket); // Reset form data
+    };
+  
+
     const handleInputChange = (
       e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
     ) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
+
+    const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      setTickets((prev) => [...prev, { ...newTicket, arNumber: `${Date.now()}` }]);
+      handleModalClose();
+    };  
 
     const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -187,6 +232,13 @@ export default function Home() {
         }
     };
 
+    const handleRowClick = (ticket: Ticket) => {
+      // Store ticket details in localStorage
+      localStorage.setItem('selectedTicket', JSON.stringify(ticket));
+      // Redirect to the static details page
+      router.push('/ticketdetails');
+    };
+  
     return (
         <div className="min-h-screen bg-gray-900 text-gray-100 p-4">
            {/* Logo and Title */}
@@ -545,6 +597,14 @@ export default function Home() {
             {/* Ticket List */}
             <div className="mt-6 max-w-4xl mx-auto">
                 <h2 className="text-xl font-bold mb-4">Tickets ({activeTab})</h2>
+
+        <button
+          onClick={handleModalOpen}
+          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded mb-4"
+        >
+          Create New Request
+        </button>
+
                 {filteredTickets.length > 0 ? (
                     <table className="table-auto w-full bg-gray-800 text-gray-100 rounded">
                         <thead>
@@ -562,7 +622,9 @@ export default function Home() {
                         </thead>
                         <tbody>
                             {filteredTickets.map((ticket, index) => (
-                                <tr key={index} className="hover:bg-gray-700">
+                                <tr key={ticket.arNumber}
+                                onClick={() => handleRowClick(ticket)}
+                                className="hover:bg-gray-700">
                                     <td className="p-2 border border-gray-700">{ticket.arNumber}</td>
                                     <td className="p-2 border border-gray-700">{ticket.severity}</td>
                                     <td className="p-2 border border-gray-700">{ticket.priority}</td>
@@ -579,9 +641,82 @@ export default function Home() {
                 ) : (
                     <p className="text-gray-400">No tickets found.</p>
                 )}
-            </div>
-        </div>
 
-        
+{isModalOpen && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded shadow-lg max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Create New Request</h2>
+            <form onSubmit={handleFormSubmit}>
+              <div className="space-y-4">
+                <input
+                  name="severity"
+                  type="text"
+                  placeholder="Severity"
+                  value={newTicket.severity}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+                />
+                <input
+                  name="priority"
+                  type="text"
+                  placeholder="Priority"
+                  value={newTicket.priority}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+                />
+                <input
+                  name="requestor"
+                  type="text"
+                  placeholder="Requestor Username"
+                  value={newTicket.requestor}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+                />
+                <input
+                  name="assignee"
+                  type="text"
+                  placeholder="Assignee Username"
+                  value={newTicket.assignee}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+                />
+                <input
+                  name="product"
+                  type="text"
+                  placeholder="Product"
+                  value={newTicket.product}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+                />
+                <input
+                  name="subProduct"
+                  type="text"
+                  placeholder="Sub-Product"
+                  value={newTicket.subProduct}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+                />
+              </div>
+              <div className="flex justify-end space-x-4 mt-4">
+                <button
+                  type="button"
+                  onClick={handleModalClose}
+                  className="bg-gray-600 text-white px-4 py-2 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded"
+                >
+                  Submit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+            </div>
+        </div>        
     );
 }
