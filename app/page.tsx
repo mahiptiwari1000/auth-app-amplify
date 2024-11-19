@@ -3,6 +3,7 @@
 import { signOut } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from "react";
+import Image from 'next/image';
 
 interface FormData {
     arNumber: string;
@@ -113,6 +114,7 @@ export default function Home() {
             subProduct: "Samsung Curved",
         },
     ];
+    const [loading, setLoading] = useState(false);
 
     const router = useRouter();
 
@@ -126,6 +128,19 @@ export default function Home() {
       email: "john.doe@example.com",
       phoneNumber: "123-456-7890",
     };
+
+    const handleSignOut = async () => {
+      setLoading(true);
+      try {
+          await signOut();
+          router.push('/signup');
+      } catch (error) {
+          console.error("Error signing out:", error);
+      } finally {
+          setLoading(false);
+      }
+  };
+
 
     useEffect(() => {
         setTickets(allTickets);
@@ -174,17 +189,32 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-gray-100 p-4">
-            <h1 className="text-3xl font-bold text-center mb-6">Ticket Management</h1>
+           {/* Logo and Title */}
+        <header className="flex items-center justify-between px-6 py-4 bg-gray-800 shadow-md">
+        <div className="flex items-center space-x-4">
+            <Image
+                src="/logo.png" // Path to your logo
+                alt="Invictacore Logo"
+                width={50} // Adjust size as needed
+                height={50}
+                className="rounded-full"
+            />
+            <h1 className="text-2xl font-bold text-white">Invictacore</h1>
+        </div>
+        <button
+            onClick={handleSignOut}
+            className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-red-300"
+        >
+            Sign Out
+        </button>
+    </header>
 
-            <button
-    onClick={async () => {
-        await signOut();
-        router.push('/signup');
-    }}
-    className="absolute top-4 right-4 px-4 py-2 bg-red-600 text-white rounded shadow-md hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-300"
->
-    Sign Out
-</button>
+            {/* Full-Screen Loader */}
+            {loading && (
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+                    <div className="w-16 h-16 border-4 border-t-4 border-gray-200 rounded-full animate-spin"></div>
+                </div>
+            )}
 
            {/* Top Menu */}
 <nav className="bg-gray-800 text-gray-200 shadow-lg relative">
@@ -345,12 +375,6 @@ export default function Home() {
                     className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded transition-colors duration-200 shadow"
                 >
                     Join
-                </a>
-                <a
-                    href="#signin"
-                    className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded transition-colors duration-200 shadow"
-                >
-                    Sign In
                 </a>
             </div>
         </div>
