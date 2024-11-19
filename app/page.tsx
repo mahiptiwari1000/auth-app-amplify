@@ -621,7 +621,7 @@ export default function Home() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredTickets.map((ticket, index) => (
+                            {filteredTickets.map((ticket) => (
                                 <tr key={ticket.arNumber}
                                 onClick={() => handleRowClick(ticket)}
                                 className="hover:bg-gray-700">
