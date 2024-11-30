@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { getCurrentUser } from 'aws-amplify/auth';
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { fetchUserAttributes } from 'aws-amplify/auth';
 import { fetchTickets } from "@/utils/ticketService";
 import StaffDashboard from "@/components/StaffDashboard";
 
@@ -23,13 +24,19 @@ interface Ticket {
   assigneeEmail: string;
 }
 
-const userDetails = {
-  fullName: "John Doe",
-  email: "john.doe@example.com",
-};
+// User Info interface
+interface UserDetails {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  address: string;
+}
+
 
 export default function Dashboard() {
   const router:any = useRouter();
+  const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]); // Tickets from the backend
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,13 +59,32 @@ export default function Dashboard() {
   // Fetch tickets from the backend on load
   useEffect(() => {
     const loadTickets = async () => {
-      const data = await getCurrentUser();
       const sessionDetails = await fetchAuthSession();
+      const attributeDetails = await fetchUserAttributes();
+      const userDetails = {
+        firstName: attributeDetails.given_name,
+        lastName: attributeDetails.family_name,
+        email: attributeDetails.email,
+        phoneNumber: attributeDetails.phone_number,
+        address: `${attributeDetails['custom:street_address']}, ${attributeDetails['custom:city']}, ${attributeDetails['custom:state']} ${attributeDetails['custom:zipcode']}`,
+      };
       const userGroups:any = sessionDetails.tokens?.accessToken.payload['cognito:groups'] || [];
       setIsITStaff(userGroups.includes('ITStaff'));
+
+              // Structure user details
+              const details: UserDetails = {
+                firstName: attributeDetails.given_name || '', // Default to an empty string if undefined
+                lastName: attributeDetails.family_name || '',
+                email: attributeDetails.email || '',
+                phoneNumber: attributeDetails.phone_number || '',
+                address: `${attributeDetails['custom:street_address'] || ''}, ${attributeDetails['custom:city'] || ''}, ${attributeDetails['custom:state'] || ''} ${attributeDetails['custom:zipcode'] || ''}`,
+              };
+              setUserDetails(details);      
     
       const {userId} = await getCurrentUser();
       console.log(userId,"user id");
+      console.log(attributeDetails,"attribute details");
+      
       
       if (!userId) return; // Ensure userId is available
       try {
@@ -186,6 +212,33 @@ export default function Dashboard() {
 
       {/* Error Message */}
       {error && <div className="bg-red-500 text-white p-4 rounded shadow">{error}</div>}
+
+{/* User Info Section */}
+<div className="bg-gray-800 p-6 rounded shadow-md mb-6">
+  <h2 className="text-lg font-bold mb-4 text-white">User Information</h2>
+  {userDetails ? (
+    <div className="space-y-2">
+      <p>
+        <span className="font-semibold text-gray-300">First Name:</span> {userDetails.firstName}
+      </p>
+      <p>
+        <span className="font-semibold text-gray-300">Last Name:</span> {userDetails.lastName}
+      </p>
+      <p>
+        <span className="font-semibold text-gray-300">Email:</span> {userDetails.email}
+      </p>
+      <p>
+        <span className="font-semibold text-gray-300">Phone Number:</span> {userDetails.phoneNumber}
+      </p>
+      <p>
+        <span className="font-semibold text-gray-300">Address:</span> {userDetails.address}
+      </p>
+    </div>
+  ) : (
+    <p className="text-gray-400">Loading user information...</p>
+  )}
+</div>
+
 
       {/* Ticket List Section */}
       <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">

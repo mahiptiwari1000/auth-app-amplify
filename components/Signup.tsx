@@ -11,6 +11,8 @@ const Signup = ({ user }: { user?: AuthUser }) => {
     const router = useRouter();    
 
     useEffect(() => {
+        console.log(user,"user");
+        
         if (user) {
             router.push(`/?user=${user?.userId}`);
         }
