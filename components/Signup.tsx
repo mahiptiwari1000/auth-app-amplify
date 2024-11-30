@@ -9,10 +9,13 @@ import Image from 'next/image';
 
 const Signup = ({ user }: { user?: AuthUser }) => {
     const router = useRouter();
+
+    console.log(user,user?.userId,"user details");
     
+
     useEffect(() => {
         if (user) {
-            router.push(`/?user=${user?.signInDetails?.loginId}`);
+            router.push(`/?user=${user?.userId}`);
         }
     }, [user]);
 
@@ -20,11 +23,65 @@ const Signup = ({ user }: { user?: AuthUser }) => {
 };
 
 export default withAuthenticator(Signup, {
+    formFields: {
+        signUp: {
+            given_name: {
+                label: 'First Name',
+                placeholder: 'Enter your first name',
+                required: true,
+            },
+            family_name: {
+                label: 'Last Name',
+                placeholder: 'Enter your last name',
+                required: true,
+            },
+            'custom:street_address': {
+                label: 'Mailing Address',
+                placeholder: 'Street Address',
+                required: true,
+            },
+            'custom:city': {
+                label: 'City',
+                placeholder: 'City',
+                required: true,
+            },
+            'custom:state': {
+                label: 'State',
+                placeholder: 'State',
+                required: true,
+            },
+            'custom:zipcode': {
+                label: 'Zipcode',
+                placeholder: 'Zipcode',
+                required: true,
+            },
+            email: {
+                label: 'Email',
+                placeholder: 'Enter your email',
+                required: true,
+            },
+            phone_number: {
+                label: 'Phone Number',
+                placeholder: 'Enter your phone number',
+                required: true,
+            },
+            password: {
+                label: 'Create Password',
+                placeholder: 'Create a password',
+                required: true,
+            },
+            confirm_password: {
+                label: 'Re-enter Password',
+                placeholder: 'Re-enter your password',
+                required: true,
+            },
+        },
+    },
     components: {
         Header: () => (
             <div className="flex flex-col items-center mb-8">
                 <Image
-                    src="/logo.png" // Replace with the path to your logo
+                    src="/logo.png"
                     alt="Invictacore Logo"
                     width={100}
                     height={100}

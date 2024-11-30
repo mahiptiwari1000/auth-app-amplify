@@ -1,780 +1,346 @@
 'use client';
-// pages/index.js
+
+import { useState, useEffect } from "react";
 import { signOut } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, Suspense } from "react";
 import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { getCurrentUser } from 'aws-amplify/auth';
+import { fetchTickets } from "@/utils/ticketService";
 
-interface FormData {
-    arNumber: string;
-    severity: string;
-    priority: string;
-    requestorUsername: string;
-    assigneeUsername: string;
-    status: string;
-    dateFrom: string;
-    dateTo: string;
-    product: string;
-    subProduct: string;
-}
-
-interface UserDetails {
-  firstName: string;
-  lastName: string;
-  streetAddress: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  email: string;
-  phoneNumber: string;
-}
-
+// Ticket interface for backend data
 interface Ticket {
   arNumber: string;
+  title: string;
+  description: string;
   severity: string;
   priority: string;
-  requestor: string;
-  assignee: string;
-  status: string;
-  dateCreated: string; // ISO date string
   product: string;
   subProduct: string;
+  status: string;
+  assignee: string;
+  assigneeEmail: string;
 }
 
-
-const initialFormData: FormData = {
-  arNumber: "",
-  severity: "",
-  priority: "",
-  requestorUsername: "",
-  assigneeUsername: "",
-  status: "",
-  dateFrom: "",
-  dateTo: "",
-  product: "",
-  subProduct: "",
+const userDetails = {
+  fullName: "John Doe",
+  email: "john.doe@example.com",
 };
 
-const initialNewTicket: Ticket = {
-  arNumber: "",
-  severity: "",
-  priority: "",
-  requestor: "",
-  assignee: "",
-  status: "Pending",
-  dateCreated: new Date().toISOString(),
-  product: "",
-  subProduct: "",
-};
+export default function Dashboard() {
+  const router:any = useRouter();
+  const [tickets, setTickets] = useState<Ticket[]>([]); // Tickets from the backend
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Ticket>({
+    arNumber: '',
+    title: '',
+    description: '',
+    severity: '',
+    priority: '',
+    product: '',
+    subProduct: '',
+    status: '',
+    assignee: '',
+    assigneeEmail: ''
+  });
+  const [searchArNumber, setSearchArNumber] = useState('');
 
-
-type Tab = "All" | "Open" | "Closed";
-const tabs: Tab[] = ["All", "Open", "Closed"];
-
-
-const PageContent = () => {
-    const [formData, setFormData] = useState<FormData>({
-        arNumber: "",
-        severity: "",
-        priority: "",
-        requestorUsername: "",
-        assigneeUsername: "",
-        status: "",
-        dateFrom: "",
-        dateTo: "",
-        product: "",
-        subProduct: "",
-    });
-
-    const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
-
-    
-    const [tickets, setTickets] = useState<Ticket[]>([]);
-    const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
-    const [activeTab, setActiveTab] = useState<Tab>("All");
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newTicket, setNewTicket] = useState<Ticket>(initialNewTicket);
-
-    const allTickets: Ticket[] = [
-        {
-            arNumber: "12345",
-            severity: "High",
-            priority: "P1",
-            requestor: "jdoe",
-            assignee: "asmith",
-            status: "In Progress",
-            dateCreated: "2024-01-15",
-            product: "Laptop",
-            subProduct: "Dell Inspiron",
-        },
-        {
-            arNumber: "67890",
-            severity: "Low",
-            priority: "P3",
-            requestor: "mjane",
-            assignee: "rsmith",
-            status: "Resolved",
-            dateCreated: "2024-02-01",
-            product: "Phone",
-            subProduct: "iPhone 12",
-        },
-        {
-            arNumber: "11223",
-            severity: "Medium",
-            priority: "P2",
-            requestor: "alice",
-            assignee: "bob",
-            status: "Closed",
-            dateCreated: "2024-03-05",
-            product: "Monitor",
-            subProduct: "Samsung Curved",
-        },
-    ];
-    const [loading, setLoading] = useState(false);
-
-    const router = useRouter();
-
-    const searchParams = useSearchParams();
-    const user = searchParams.get('user');
-
-    const fetchedUserDetails:UserDetails = {
-      firstName: "John",
-      lastName: "Doe",
-      streetAddress: "123 Main Street",
-      city: "Chicago",
-      state: "IL",
-      zipCode: "60601",
-      email: "john.doe@example.com",
-      phoneNumber: "123-456-7890",
-    };
-
-    const handleSignOut = async () => {
-      setLoading(true);
-      try {
-          await signOut();
-          router.push('/signup');
-      } catch (error) {
-          console.error("Error signing out:", error);
-      } finally {
-          setLoading(false);
-      }
-  };
-
+  // Fetch tickets from the backend on load
   useEffect(() => {
-    setTickets([
-      {
-        arNumber: "12345",
-        severity: "High",
-        priority: "P1",
-        requestor: "jdoe",
-        assignee: "asmith",
-        status: "In Progress",
-        dateCreated: "2024-01-15",
-        product: "Laptop",
-        subProduct: "Dell Inspiron",
-      },
-    ]);
-  }, []);
-
-    useEffect(() => {
-        setTickets(allTickets);
-        setFilteredTickets(allTickets);
-      setUserDetails(fetchedUserDetails);
-    },[]);
-
-    const handleModalOpen = () => setIsModalOpen(true);
-    const handleModalClose = () => {
-      setIsModalOpen(false);
-      setNewTicket(initialNewTicket); // Reset form data
+    const loadTickets = async () => {
+      const {userId} = await getCurrentUser();
+      console.log(userId,"user id");
+      
+      if (!userId) return; // Ensure userId is available
+      try {
+        setLoading(true);
+        const response = await fetch(`http://localhost:5001/api/tickets?userId=${userId}`);
+        if (!response.ok) throw new Error('Failed to fetch tickets');
+        const data = await response.json();
+        setTickets(data);
+      } catch (error) {
+        console.error('Error loading tickets:', error);
+      } finally {
+        setLoading(false);
+      }
     };
   
+    loadTickets();
+  }, []);  
 
-    const handleInputChange = (
-      e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-    ) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-    };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+    
 
-    const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      setTickets((prev) => [...prev, { ...newTicket, arNumber: `${Date.now()}` }]);
-      handleModalClose();
-    };  
+  // Handle ticket selection
+  const handleTicketClick = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+  };
 
-    const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
+  // Handle sign out
+  const handleSignOut = async () => {
+    setLoading(true);
+    try {
+      await signOut();
+      router.push('/signup');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const results = tickets.filter((ticket) => {
-          return (
-                (!formData.arNumber || ticket.arNumber.includes(formData.arNumber)) &&
-                (!formData.severity || ticket.severity === formData.severity) &&
-                (!formData.priority || ticket.priority === formData.priority) &&
-                (!formData.requestorUsername || ticket.requestor.includes(formData.requestorUsername)) &&
-                (!formData.assigneeUsername || ticket.assignee.includes(formData.assigneeUsername)) &&
-                (!formData.status || ticket.status === formData.status) &&
-                (!formData.dateFrom || new Date(ticket.dateCreated) >= new Date(formData.dateFrom)) &&
-                (!formData.dateTo || new Date(ticket.dateCreated) <= new Date(formData.dateTo)) &&
-                (!formData.product || ticket.product === formData.product) &&
-                (!formData.subProduct || ticket.subProduct === formData.subProduct)
-            );
-        });
+  const handleSearchInputChange = (e: any) => {
+    setSearchArNumber(e.target.value);
+  };  
 
-        setFilteredTickets(results);
-    };
-
-    const handleTabChange = (tab: Tab) => {
-        setActiveTab(tab);
-        if (tab === "All") {
-            setFilteredTickets(tickets);
-        } else if (tab === "Open") {
-            setFilteredTickets(tickets.filter((ticket) => ticket.status !== "Closed"));
-        } else if (tab === "Closed") {
-            setFilteredTickets(tickets.filter((ticket) => ticket.status === "Closed"));
-        }
-    };
-
-    const handleRowClick = (ticket: Ticket) => {
-      // Store ticket details in localStorage
-      localStorage.setItem('selectedTicket', JSON.stringify(ticket));
-      // Redirect to the static details page
-      router.push('/ticketdetails');
-    };
-
-    const generatePdf = () => {
-      const doc = new jsPDF();
-  
-      // Title
-      doc.setFontSize(18);
-      doc.text('Analytic Report', 14, 20);
-  
-      // Subtitle
-      doc.setFontSize(12);
-      doc.text('Generated by Invictacore', 14, 30);
-  
-      // Table Data
-      const columns = ['AR Number', 'Status', 'Priority', 'Requestor', 'Assignee', 'Date Created', 'Product', 'Sub-Product'];
-      const rows = [
-          ['12345', 'In Progress', 'P1', 'jdoe', 'asmith', '2024-01-15', 'Laptop', 'Dell Inspiron'],
-          ['67890', 'Resolved', 'P3', 'mjane', 'rsmith', '2024-02-01', 'Phone', 'iPhone 12'],
-          ['11223', 'Closed', 'P2', 'alice', 'bob', '2024-03-05', 'Monitor', 'Samsung Curved'],
-      ];
-  
-      // Add the table to the PDF
-      autoTable(doc, {
-          head: [columns],
-          body: rows,
-          startY: 40,
-          theme: 'grid', // Optional: Choose table style (striped, grid, plain)
-          headStyles: { fillColor: [22, 160, 133] }, // Custom header color (optional)
-          styles: { fontSize: 10 }, // Adjust font size
-      });
-  
-      // Save the PDF
-      doc.save('analytic_report.pdf');
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5001/api/tickets?arNumber=${encodeURIComponent(searchArNumber)}`);
+      if (!response.ok) throw new Error('Failed to fetch tickets');
+      const data = await response.json();
+      setTickets(data);
+    } catch (err:any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
   
+  const handleCreateTicket = async (e:React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const {userId} = await getCurrentUser();
+    if (!userId) {
+      console.error('User ID is missing');
+      return;
+    }
+    try {
+      const response = await fetch('http://localhost:5001/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...formData, userId }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create ticket');
+      }
+      const newTicket = await response.json();
+      setTickets((prevTickets) => [...prevTickets, newTicket]);
+      // Reset form fields
+      setFormData({
+        arNumber: '',
+        title: '',
+        description: '',
+        severity: '',
+        priority: '',
+        product: '',
+        subProduct: '',
+        status: '',
+        assignee: '',
+        assigneeEmail: '',
+      });
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+    }
+  };
   
-  
-    return (
-        <div className="min-h-screen bg-gray-900 text-gray-100 p-4">
-           {/* Logo and Title */}
-        <header className="flex items-center justify-between px-6 py-4 bg-gray-800 shadow-md">
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-100 p-6 space-y-6">
+      {/* Top Bar with Sign Out Button */}
+      <header className="flex items-center justify-between px-6 py-4 bg-gray-800 shadow-md">
         <div className="flex items-center space-x-4">
-            <Image
-                src="/logo.png" // Path to your logo
-                alt="Invictacore Logo"
-                width={50} // Adjust size as needed
-                height={50}
-                className="rounded-full"
-            />
-            <h1 className="text-2xl font-bold text-white">Invictacore</h1>
+          <Image src="/logo.png" alt="Invictacore Logo" width={50} height={50} className="rounded-full" />
+          <h1 className="text-2xl font-bold text-white">Invictacore</h1>
         </div>
         <button
-            onClick={handleSignOut}
-            className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-red-300"
+          onClick={handleSignOut}
+          className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-red-300"
         >
-            Sign Out
+          Sign Out
         </button>
-    </header>
+      </header>
 
-            {/* Full-Screen Loader */}
-            {loading && (
-                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="w-16 h-16 border-4 border-t-4 border-gray-200 rounded-full animate-spin"></div>
-                </div>
-            )}
-
-           {/* Top Menu */}
-<nav className="bg-gray-800 text-gray-200 shadow-lg relative">
-    <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-            {/* Left Menu Links */}
-            <div className="flex space-x-4">
-                {/* About Dropdown */}
-                <div className="relative group">
-                    <a
-                        href="#about"
-                        className="hover:bg-gray-700 px-3 py-2 rounded transition-colors duration-200"
-                    >
-                        About
-                    </a>
-                    <div className="absolute hidden group-hover:block bg-gray-700 text-gray-200 w-48 shadow-lg rounded mt-2">
-                        <a href="#president" className="block px-4 py-2 hover:bg-gray-600">
-                            President&apos;s Message
-                        </a>
-                        <a href="#conduct" className="block px-4 py-2 hover:bg-gray-600">
-                            Code of Conduct
-                        </a>
-                        <a href="#policies" className="block px-4 py-2 hover:bg-gray-600">
-                            Policies
-                        </a>
-                        <a href="#bylaws" className="block px-4 py-2 hover:bg-gray-600">
-                            Bylaws
-                        </a>
-                        <a href="#sponsors" className="block px-4 py-2 hover:bg-gray-600">
-                            Sponsors
-                        </a>
-                        <a href="#handbook" className="block px-4 py-2 hover:bg-gray-600">
-                            Handbook
-                        </a>
-                        <a href="#contact" className="block px-4 py-2 hover:bg-gray-600">
-                            Contact
-                        </a>
-                    </div>
-                </div>
-
-                {/* News Dropdown */}
-                <div className="relative group">
-                    <a
-                        href="#news"
-                        className="hover:bg-gray-700 px-3 py-2 rounded transition-colors duration-200"
-                    >
-                        News
-                    </a>
-                    <div className="absolute hidden group-hover:block bg-gray-700 text-gray-200 w-48 shadow-lg rounded mt-2">
-                        <a href="#announcement" className="block px-4 py-2 hover:bg-gray-600">
-                            Announcement
-                        </a>
-                        <a href="#ksea-letters" className="block px-4 py-2 hover:bg-gray-600">
-                            KSEA Letters
-                        </a>
-                        <a href="#ksea-eletters" className="block px-4 py-2 hover:bg-gray-600">
-                            KSEA e-Letters
-                        </a>
-                        <a href="#jobs" className="block px-4 py-2 hover:bg-gray-600">
-                            Job Opportunities
-                        </a>
-                        <a href="#media" className="block px-4 py-2 hover:bg-gray-600">
-                            Media
-                        </a>
-                    </div>
-                </div>
-
-                {/* Organization Dropdown */}
-                <div className="relative group">
-                    <a
-                        href="#organization"
-                        className="hover:bg-gray-700 px-3 py-2 rounded transition-colors duration-200"
-                    >
-                        Organization
-                    </a>
-                    <div className="absolute hidden group-hover:block bg-gray-700 text-gray-200 w-56 shadow-lg rounded mt-2">
-                        <a href="#leadership" className="block px-4 py-2 hover:bg-gray-600">
-                            Leadership
-                        </a>
-                        <a href="#committee" className="block px-4 py-2 hover:bg-gray-600">
-                            Committee
-                        </a>
-                        <a href="#technical-group" className="block px-4 py-2 hover:bg-gray-600">
-                            Technical Group
-                        </a>
-                        <a href="#former-presidents" className="block px-4 py-2 hover:bg-gray-600">
-                            Former Presidents
-                        </a>
-                        <a href="#local-chapters" className="block px-4 py-2 hover:bg-gray-600">
-                            Local Chapters
-                        </a>
-                        <a href="#ksea-councilors" className="block px-4 py-2 hover:bg-gray-600">
-                            KSEA Councilors
-                        </a>
-                        <a href="#affiliated" className="block px-4 py-2 hover:bg-gray-600">
-                            Affiliated Professional Societies
-                        </a>
-                    </div>
-                </div>
-
-                <div className="relative group">
-                    <a
-                        href="#award"
-                        className="hover:bg-gray-700 px-3 py-2 rounded transition-colors duration-200"
-                    >
-                        Award
-                    </a>
-                    <div className="absolute hidden group-hover:block bg-gray-700 text-gray-200 w-56 shadow-lg rounded mt-2">
-                        <a href="#scholarship" className="block px-4 py-2 hover:bg-gray-600">
-                            Scholarship
-                        </a>
-                        <a href="#honors" className="block px-4 py-2 hover:bg-gray-600">
-                            Honors and Awards
-                        </a>
-                        <a href="#grants" className="block px-4 py-2 hover:bg-gray-600">
-                            Young Investigator Grants
-                        </a>
-                    </div>
-                </div>
-
-                {/* Membership Dropdown */}
-                <div className="relative group">
-                    <a
-                        href="#membership"
-                        className="hover:bg-gray-700 px-3 py-2 rounded transition-colors duration-200"
-                    >
-                        Membership
-                    </a>
-                    <div className="absolute hidden group-hover:block bg-gray-700 text-gray-200 w-56 shadow-lg rounded mt-2">
-                        <a href="#about-membership" className="block px-4 py-2 hover:bg-gray-600">
-                            About Membership
-                        </a>
-                        <a href="#lifetime" className="block px-4 py-2 hover:bg-gray-600">
-                            Lifetime Members
-                        </a>
-                        <a href="#join-membership" className="block px-4 py-2 hover:bg-gray-600">
-                            Join KSEA
-                        </a>
-                    </div>
-                </div>
-
-                {/* Donation (No Submenu) */}
-                <div>
-                    <a
-                        href="#donation"
-                        className="hover:bg-gray-700 px-3 py-2 rounded transition-colors duration-200"
-                    >
-                        Donation
-                    </a>
-                </div>
-
-            </div>
-
-            {/* Right Menu Links */}
-            <div className="space-x-4">
-                <a
-                    href="#join"
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded transition-colors duration-200 shadow"
-                >
-                    Join
-                </a>
-            </div>
-        </div>
-    </div>
-</nav>
-
-
-{/* Spacer */}
-<div className="h-6 bg-gray-900"></div>
-        
-{/* User Contact Information */}
-{userDetails && (
-    <div className="max-w-4xl mx-auto bg-gray-800 p-6 shadow-lg rounded mb-6">
-        <h2 className="text-xl font-bold mb-4 text-gray-100">User Contact Information</h2>
-        <div className="space-y-2">
-            <p>
-                <span className="font-semibold text-gray-300">Full Name:</span>{" "}
-                {user}
-            </p>
-            <p>
-                <span className="font-semibold text-gray-300">Mailing Address:</span>{" "}
-                {userDetails.streetAddress}, {userDetails.city}, {userDetails.state}{" "}
-                {userDetails.zipCode}
-            </p>
-            <p>
-                <span className="font-semibold text-gray-300">Email Address:</span>{" "}
-                {user}
-            </p>
-            <p>
-                <span className="font-semibold text-gray-300">Phone Number:</span>{" "}
-                {userDetails.phoneNumber}
-            </p>
-        </div>
-    </div>
-)}
-
-
-            {/* Tabs for navigation */}
-            <div className="flex justify-center space-x-4 mb-6">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab}
-                        className={`p-2 rounded text-sm font-semibold ${
-                            activeTab === tab
-                                ? "bg-blue-600 text-white shadow-lg"
-                                : "bg-gray-800 hover:bg-gray-700"
-                        }`}
-                        onClick={() => handleTabChange(tab)}
-                    >
-                        {tab} Tickets
-                    </button>
-                ))}
-            </div>
-
-            {/* Search Form */}
-            <form
-                className="space-y-4 max-w-4xl mx-auto bg-gray-800 p-6 shadow-lg rounded"
-                onSubmit={handleSearch}
-            >
-                <div className="grid grid-cols-2 gap-4">
-                    <input
-                        name="arNumber"
-                        type="text"
-                        placeholder="AR Number"
-                        value={formData.arNumber}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    />
-                    <select
-                        name="severity"
-                        value={formData.severity}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    >
-                        <option value="">Select Severity</option>
-                        <option value="High">High</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Low">Low</option>
-                    </select>
-                    <select
-                        name="priority"
-                        value={formData.priority}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    >
-                        <option value="">Select Priority</option>
-                        <option value="P1">P1</option>
-                        <option value="P2">P2</option>
-                        <option value="P3">P3</option>
-                    </select>
-                    <input
-                        name="requestorUsername"
-                        type="text"
-                        placeholder="Requestor Username"
-                        value={formData.requestorUsername}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    />
-                    <input
-                        name="assigneeUsername"
-                        type="text"
-                        placeholder="Assignee Username"
-                        value={formData.assigneeUsername}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    />
-                    <select
-                        name="status"
-                        value={formData.status}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    >
-                        <option value="">Select Status</option>
-                        <option value="Assigned">Assigned</option>
-                        <option value="Pending">Pending</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Resolved">Resolved</option>
-                        <option value="Closed">Closed</option>
-                    </select>
-                    <input
-                        name="dateFrom"
-                        type="date"
-                        value={formData.dateFrom}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    />
-                    <input
-                        name="dateTo"
-                        type="date"
-                        value={formData.dateTo}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    />
-                    <input
-                        name="product"
-                        type="text"
-                        placeholder="Product"
-                        value={formData.product}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    />
-                    <input
-                        name="subProduct"
-                        type="text"
-                        placeholder="Sub-Product"
-                        value={formData.subProduct}
-                        onChange={handleInputChange}
-                        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded focus:outline-none focus:ring focus:ring-blue-500"
-                    />
-                </div>
-                <div className="flex justify-end space-x-4">
-                    <button
-                        type="reset"
-                        className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500"
-                        onClick={() => setFormData(initialFormData)}
-                    >
-                        Clear
-                    </button>
-                    <button
-                        type="submit"
-                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"
-                    >
-                        Search
-                    </button>
-                </div>
-            </form>
-
-            {/* Ticket List */}
-            <div className="mt-6 max-w-4xl mx-auto">
-                <h2 className="text-xl font-bold mb-4">Tickets ({activeTab})</h2>
-
-                <div className="flex space-x-4 mb-4">
-    <button
-        onClick={handleModalOpen}
-        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded"
-    >
-        Create New Request
-    </button>
-
-    {(user=='mtiwa@uic.edu' || user=='hgara2@uic.edu') && <button
-        onClick={generatePdf}
-        className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded"
-    >
-        Download Analytic Report
-    </button>}
-</div>
-
-
-                {filteredTickets.length > 0 ? (
-                    <table className="table-auto w-full bg-gray-800 text-gray-100 rounded">
-                        <thead>
-                            <tr className="bg-gray-700 text-gray-200">
-                                <th className="p-2 border border-gray-600">AR Number</th>
-                                <th className="p-2 border border-gray-600">Severity</th>
-                                <th className="p-2 border border-gray-600">Priority</th>
-                                <th className="p-2 border border-gray-600">Requestor</th>
-                                <th className="p-2 border border-gray-600">Assignee</th>
-                                <th className="p-2 border border-gray-600">Status</th>
-                                <th className="p-2 border border-gray-600">Date Created</th>
-                                <th className="p-2 border border-gray-600">Product</th>
-                                <th className="p-2 border border-gray-600">Sub-Product</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredTickets.map((ticket) => (
-                                <tr key={ticket.arNumber}
-                                onClick={() => handleRowClick(ticket)}
-                                className="hover:bg-gray-700">
-                                    <td className="p-2 border border-gray-700">{ticket.arNumber}</td>
-                                    <td className="p-2 border border-gray-700">{ticket.severity}</td>
-                                    <td className="p-2 border border-gray-700">{ticket.priority}</td>
-                                    <td className="p-2 border border-gray-700">{ticket.requestor}</td>
-                                    <td className="p-2 border border-gray-700">{ticket.assignee}</td>
-                                    <td className="p-2 border border-gray-700">{ticket.status}</td>
-                                    <td className="p-2 border border-gray-700">{ticket.dateCreated}</td>
-                                    <td className="p-2 border border-gray-700">{ticket.product}</td>
-                                    <td className="p-2 border border-gray-700">{ticket.subProduct}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                ) : (
-                    <p className="text-gray-400">No tickets found.</p>
-                )}
-
-{isModalOpen && (
+      {/* Full-Screen Loader */}
+      {loading && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-6 rounded shadow-lg max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Create New Request</h2>
-            <form onSubmit={handleFormSubmit}>
-              <div className="space-y-4">
-                <input
-                  name="severity"
-                  type="text"
-                  placeholder="Severity"
-                  value={newTicket.severity}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-                />
-                <input
-                  name="priority"
-                  type="text"
-                  placeholder="Priority"
-                  value={newTicket.priority}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-                />
-                <input
-                  name="requestor"
-                  type="text"
-                  placeholder="Requestor Username"
-                  value={newTicket.requestor}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-                />
-                <input
-                  name="assignee"
-                  type="text"
-                  placeholder="Assignee Username"
-                  value={newTicket.assignee}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-                />
-                <input
-                  name="product"
-                  type="text"
-                  placeholder="Product"
-                  value={newTicket.product}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-                />
-                <input
-                  name="subProduct"
-                  type="text"
-                  placeholder="Sub-Product"
-                  value={newTicket.subProduct}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-                />
-              </div>
-              <div className="flex justify-end space-x-4 mt-4">
-                <button
-                  type="button"
-                  onClick={handleModalClose}
-                  className="bg-gray-600 text-white px-4 py-2 rounded"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded"
-                >
-                  Submit
-                </button>
-              </div>
-            </form>
+          <div className="w-16 h-16 border-4 border-t-4 border-gray-200 rounded-full animate-spin"></div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && <div className="bg-red-500 text-white p-4 rounded shadow">{error}</div>}
+
+      {/* Ticket List Section */}
+      <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
+        <h2 className="text-lg font-bold mb-4 text-white">Your Tickets</h2>
+        {tickets.map((ticket) => (
+          <div
+            key={ticket.arNumber}
+            className="flex items-center justify-between p-4 bg-gray-700 rounded mb-2 shadow cursor-pointer hover:bg-gray-600"
+            onClick={() => handleTicketClick(ticket)}
+          >
+            <div>
+              <p className="font-semibold text-white">{ticket.title}</p>
+              <p className="text-sm text-gray-300">{ticket.description}</p>
+            </div>
+            <p className="text-sm text-gray-400">{ticket.status}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Ticket Info Section */}
+      {selectedTicket && (
+        <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
+          <h2 className="text-lg font-bold mb-4 text-white">Your Ticket Info</h2>
+          <div className="space-y-2">
+            <p>
+              <span className="font-semibold text-gray-300">AR Number:</span> {selectedTicket.arNumber}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-300">Ticket Title:</span> {selectedTicket.title}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-300">Product:</span> {selectedTicket.product}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-300">Severity:</span> {selectedTicket.severity}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-300">Priority:</span> {selectedTicket.priority}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-300">Status:</span> {selectedTicket.status}
+            </p>
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={() => router.push(`/detailed-ticket-status?arNumber=${selectedTicket.arNumber}`)}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"
+            >
+              View Detailed Ticket Status
+            </button>
           </div>
         </div>
       )}
-            </div>
-        </div>        
-    );
-}
 
-export default function Home() {
-  return (
-    <Suspense fallback={<div className="text-white">Loading...</div>}>
-      <PageContent />
-    </Suspense>
+      {/* Search and Create Ticket Section */}
+      <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {/* Search Section */}
+        <div>
+  <h2 className="text-lg font-bold mb-4 text-white">Search Your Ticket by AR Number:</h2>
+  <form className="space-y-4" onSubmit={handleSearch}>
+    <input
+      type="text"
+      placeholder="AR Number"
+      value={searchArNumber}
+      onChange={handleSearchInputChange}
+      className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    />
+    <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+      Search
+    </button>
+  </form>
+</div>
+
+
+        {/* Create New Ticket Section */}
+        <div>
+          <h2 className="text-lg font-bold mb-4 text-white">Create a New Ticket</h2>
+          <form className="space-y-4" onSubmit={handleCreateTicket}>
+  <input
+    type="text"
+    name="arNumber"
+    placeholder="AR Number"
+    value={formData.arNumber}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+  <input
+    type="text"
+    name="title"
+    placeholder="Ticket Title"
+    value={formData.title}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+  <textarea
+    name="description"
+    placeholder="Brief Summary"
+    value={formData.description}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  ></textarea>
+  <input
+    type="text"
+    name="severity"
+    placeholder="Severity"
+    value={formData.severity}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+  <input
+    type="text"
+    name="priority"
+    placeholder="Priority"
+    value={formData.priority}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+  <input
+    type="text"
+    name="product"
+    placeholder="Product"
+    value={formData.product}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+  <input
+    type="text"
+    name="subProduct"
+    placeholder="Sub-Product"
+    value={formData.subProduct}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+  <input
+    type="text"
+    name="status"
+    placeholder="Status"
+    value={formData.status}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+  <input
+    type="text"
+    name="assignee"
+    placeholder="Assignee"
+    value={formData.assignee}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+  <input
+    type="email"
+    name="assigneeEmail"
+    placeholder="Assignee Email"
+    value={formData.assigneeEmail}
+    onChange={handleInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+  <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+    Submit
+  </button>
+</form>
+        </div>
+      </div>
+    </div>
   );
 }
