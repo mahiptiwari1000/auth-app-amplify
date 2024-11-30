@@ -8,10 +8,7 @@ import '@aws-amplify/ui-react/styles.css';
 import Image from 'next/image';
 
 const Signup = ({ user }: { user?: AuthUser }) => {
-    const router = useRouter();
-
-    console.log(user,user?.userId,"user details");
-    
+    const router = useRouter();    
 
     useEffect(() => {
         if (user) {
