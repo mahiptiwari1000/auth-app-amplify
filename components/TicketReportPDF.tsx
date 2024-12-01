@@ -1,6 +1,21 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
 
+// Define the Ticket interface
+interface Ticket {
+  arNumber: string;
+  title: string;
+  description: string;
+  severity: string;
+  priority: string;
+  product: string;
+  subProduct: string;
+  status: string;
+  assignee: string;
+  assigneeEmail: string;
+  userName: string; // Assuming 'userName' is part of Ticket data
+}
+
 const styles = StyleSheet.create({
   page: { padding: 30 },
   section: { marginBottom: 10 },
@@ -11,18 +26,24 @@ const styles = StyleSheet.create({
   tableCell: { margin: 5, fontSize: 10 },
 });
 
-const TicketReportPDF = ({ tickets }:any) => (
+interface TicketReportPDFProps {
+  tickets: Ticket[]; // Define the expected prop type
+}
+
+const TicketReportPDF: React.FC<TicketReportPDFProps> = ({ tickets }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       <Text style={styles.header}>Ticket Report</Text>
       <View style={styles.table}>
+        {/* Table Header */}
         <View style={styles.tableRow}>
           <View style={styles.tableCol}><Text style={styles.tableCell}>User</Text></View>
           <View style={styles.tableCol}><Text style={styles.tableCell}>Ticket Title</Text></View>
           <View style={styles.tableCol}><Text style={styles.tableCell}>Status</Text></View>
           <View style={styles.tableCol}><Text style={styles.tableCell}>AR Number</Text></View>
         </View>
-        {tickets.map((ticket:any, index:any) => (
+        {/* Table Body */}
+        {tickets.map((ticket, index) => (
           <View key={index} style={styles.tableRow}>
             <View style={styles.tableCol}><Text style={styles.tableCell}>{ticket.userName}</Text></View>
             <View style={styles.tableCol}><Text style={styles.tableCell}>{ticket.title}</Text></View>

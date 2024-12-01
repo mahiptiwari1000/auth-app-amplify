@@ -1,17 +1,8 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
 export default function DetailedTicketStatus() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // Retrieve ticket details from query parameters
-  const arNumber = searchParams.get('arNumber') || '';
-  const status = searchParams.get('status') || '';
-  const severity = searchParams.get('severity') || '';
-  const priority = searchParams.get('priority') || '';
 
   // State to hold the selected file
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -24,18 +15,14 @@ export default function DetailedTicketStatus() {
     }
   };
 
+ 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6">
       <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-bold text-white">Detailed Ticket Status</h2>
-          <button
-            onClick={() => router.push('/')} // Redirect to dashboard
-            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded shadow-md focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            Back to Dashboard
-          </button>
+         
         </div>
 
         {/* Ticket Fields */}
@@ -44,7 +31,7 @@ export default function DetailedTicketStatus() {
             <label className="block text-sm font-semibold text-gray-300">AR Number</label>
             <input
               type="text"
-              value={arNumber}
+              value={''}
               readOnly
               className="w-full p-2 bg-gray-700 text-gray-100 rounded border border-gray-600"
             />
@@ -53,7 +40,7 @@ export default function DetailedTicketStatus() {
             <label className="block text-sm font-semibold text-gray-300">Status</label>
             <input
               type="text"
-              value={status}
+              value={''}
               readOnly
               className="w-full p-2 bg-gray-700 text-gray-100 rounded border border-gray-600"
             />
@@ -62,7 +49,7 @@ export default function DetailedTicketStatus() {
             <label className="block text-sm font-semibold text-gray-300">Severity</label>
             <input
               type="text"
-              value={severity}
+              value={''}
               readOnly
               className="w-full p-2 bg-gray-700 text-gray-100 rounded border border-gray-600"
             />
@@ -71,7 +58,7 @@ export default function DetailedTicketStatus() {
             <label className="block text-sm font-semibold text-gray-300">Priority</label>
             <input
               type="text"
-              value={priority}
+              value={''}
               readOnly
               className="w-full p-2 bg-gray-700 text-gray-100 rounded border border-gray-600"
             />
@@ -128,7 +115,7 @@ export default function DetailedTicketStatus() {
         <div>
           <label className="block text-sm font-semibold text-gray-300">
             Resolution notes from the agent - Can be uploaded only when the ticket status is changed
-            to "Resolved".
+            to &quot;Resolved&quot;.
           </label>
           <textarea
             rows={3}

@@ -7,8 +7,6 @@ import Image from 'next/image';
 import { getCurrentUser } from 'aws-amplify/auth';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { fetchUserAttributes } from 'aws-amplify/auth';
-import { fetchTickets } from "@/utils/ticketService";
-import StaffDashboard from "@/components/StaffDashboard";
 
 // Ticket interface for backend data
 interface Ticket {
@@ -35,7 +33,7 @@ interface UserDetails {
 
 
 export default function Dashboard() {
-  const router:any = useRouter();
+  const router = useRouter();
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]); // Tickets from the backend
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -61,14 +59,7 @@ export default function Dashboard() {
     const loadTickets = async () => {
       const sessionDetails = await fetchAuthSession();
       const attributeDetails = await fetchUserAttributes();
-      const userDetails = {
-        firstName: attributeDetails.given_name,
-        lastName: attributeDetails.family_name,
-        email: attributeDetails.email,
-        phoneNumber: attributeDetails.phone_number,
-        address: `${attributeDetails['custom:street_address']}, ${attributeDetails['custom:city']}, ${attributeDetails['custom:state']} ${attributeDetails['custom:zipcode']}`,
-      };
-      const userGroups:any = sessionDetails.tokens?.accessToken.payload['cognito:groups'] || [];
+      const userGroups = (sessionDetails.tokens?.accessToken.payload['cognito:groups'] || []) as string[];
       setIsITStaff(userGroups.includes('ITStaff'));
 
               // Structure user details
@@ -130,25 +121,29 @@ export default function Dashboard() {
     }
   };
 
-  const handleSearchInputChange = (e: any) => {
-    setSearchArNumber(e.target.value);
-  };  
+const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  setSearchArNumber(e.target.value);
+};
 
-  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const response = await fetch(`http://localhost:5001/api/tickets?arNumber=${encodeURIComponent(searchArNumber)}`);
-      if (!response.ok) throw new Error('Failed to fetch tickets');
-      const data = await response.json();
-      setTickets(data);
-    } catch (err:any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setLoading(true);
+  try {
+    const response = await fetch(`http://localhost:5001/api/tickets?arNumber=${encodeURIComponent(searchArNumber)}`);
+    if (!response.ok) throw new Error('Failed to fetch tickets');
+    const data = await response.json();
+    setTickets(data);
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      setError(err.message); // Handle the error message safely
+    } else {
+      setError('An unexpected error occurred'); // Fallback error message
     }
-  };
-  
+  } finally {
+    setLoading(false); // Ensure loading is stopped in both success and failure cases
+  }
+};
+
   const handleCreateTicket = async (e:React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const {userId} = await getCurrentUser();

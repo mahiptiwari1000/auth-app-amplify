@@ -16,7 +16,7 @@ const Signup = ({ user }: { user?: AuthUser }) => {
         if (user) {
             router.push(`/?user=${user?.userId}`);
         }
-    }, [user]);
+    }, [user,router]);
 
     return null; // The actual content is injected by the authenticator
 };
