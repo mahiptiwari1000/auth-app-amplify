@@ -24,6 +24,7 @@ interface Ticket {
 
 // User Info interface
 interface UserDetails {
+  userId:string,
   firstName: string;
   lastName: string;
   email: string;
@@ -52,6 +53,18 @@ export default function Dashboard() {
     assigneeEmail: ''
   });
   const [searchArNumber, setSearchArNumber] = useState('');
+  const [searchParams, setSearchParams] = useState({
+    arNumber: '',
+    severity: '',
+    priority: '',
+    requestorUsername: '',
+    assigneeUsername: '',
+    status: '',
+    startDate: '',
+    endDate: '',
+    product: '',
+    subProduct: ''
+  });
   const [isITStaff, setIsITStaff] = useState(false);
 
   // Fetch tickets from the backend on load
@@ -59,24 +72,27 @@ export default function Dashboard() {
     const loadTickets = async () => {
       const sessionDetails = await fetchAuthSession();
       const attributeDetails = await fetchUserAttributes();
+      console.log(attributeDetails);
+      
       const userGroups = (sessionDetails.tokens?.accessToken.payload['cognito:groups'] || []) as string[];
       setIsITStaff(userGroups.includes('ITStaff'));
 
-              // Structure user details
-              const details: UserDetails = {
-                firstName: attributeDetails.given_name || '', // Default to an empty string if undefined
-                lastName: attributeDetails.family_name || '',
-                email: attributeDetails.email || '',
-                phoneNumber: attributeDetails.phone_number || '',
-                address: `${attributeDetails['custom:street_address'] || ''}, ${attributeDetails['custom:city'] || ''}, ${attributeDetails['custom:state'] || ''} ${attributeDetails['custom:zipcode'] || ''}`,
-              };
-              setUserDetails(details);      
-    
-      const {userId} = await getCurrentUser();
-      console.log(userId,"user id");
-      console.log(attributeDetails,"attribute details");
-      
-      
+      // Structure user details
+      const details: UserDetails = {
+        userId:attributeDetails.sub || '',
+        firstName: attributeDetails.given_name || '', // Default to an empty string if undefined
+        lastName: attributeDetails.family_name || '',
+        email: attributeDetails.email || '',
+        phoneNumber: attributeDetails.phone_number || '',
+        address: `${attributeDetails['custom:street_address'] || ''}, ${attributeDetails['custom:city'] || ''}, ${attributeDetails['custom:state'] || ''} ${attributeDetails['custom:zipcode'] || ''}`,
+      };
+      setUserDetails(details);
+
+      const { userId } = await getCurrentUser();
+      console.log(userId, "user id");
+      console.log(attributeDetails, "attribute details");
+
+
       if (!userId) return; // Ensure userId is available
       try {
         setLoading(true);
@@ -90,9 +106,9 @@ export default function Dashboard() {
         setLoading(false);
       }
     };
-  
+
     loadTickets();
-  }, []);  
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -101,7 +117,7 @@ export default function Dashboard() {
       [name]: value,
     }));
   };
-    
+
 
   // Handle ticket selection
   const handleTicketClick = (ticket: Ticket) => {
@@ -121,33 +137,39 @@ export default function Dashboard() {
     }
   };
 
-const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  setSearchArNumber(e.target.value);
-};
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setSearchParams((prev) => ({
+      ...prev,
+      userId:userDetails?.userId,
+      [name]: value,
+    }));
+  };
 
-const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  setLoading(true);
-  const {userId} = await getCurrentUser();
-  try {
-    const response = await fetch(`https://it-support-app-backend.vercel.app/api/search/?arNumber=${encodeURIComponent(searchArNumber)}&userId=${userId}`);
-    if (!response.ok) throw new Error('Failed to fetch tickets');
-    const data = await response.json();
-    setTickets(data);
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      setError(err.message); // Handle the error message safely
-    } else {
-      setError('An unexpected error occurred'); // Fallback error message
-    }
-  } finally {
-    setLoading(false); // Ensure loading is stopped in both success and failure cases
-  }
-};
-
-  const handleCreateTicket = async (e:React.FormEvent<HTMLFormElement>) => {
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const {userId} = await getCurrentUser();
+    setLoading(true);
+    try {
+      const queryParams = new URLSearchParams(searchParams).toString();
+      const response = await fetch(`https://it-support-app-backend.vercel.app/api/search?${queryParams}`);
+
+      if (!response.ok) throw new Error('Failed to fetch tickets');
+      const data = await response.json();
+      setTickets(data);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTicket = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const { userId } = await getCurrentUser();
     if (!userId) {
       console.error('User ID is missing');
       return;
@@ -182,7 +204,7 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
       console.error('Error creating ticket:', error);
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 space-y-6">
       {/* Top Bar with Sign Out Button */}
@@ -209,39 +231,39 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
       {/* Error Message */}
       {error && <div className="bg-red-500 text-white p-4 rounded shadow">{error}</div>}
 
-{/* User Info Section */}
-<div className="bg-gray-800 p-6 rounded shadow-md mb-6">
-  <h2 className="text-lg font-bold mb-4 text-white">User Information</h2>
-  {userDetails ? (
-    <div className="space-y-2">
-      <p>
-        <span className="font-semibold text-gray-300">First Name:</span> {userDetails.firstName}
-      </p>
-      <p>
-        <span className="font-semibold text-gray-300">Last Name:</span> {userDetails.lastName}
-      </p>
-      <p>
-        <span className="font-semibold text-gray-300">Email:</span> {userDetails.email}
-      </p>
-      <p>
-        <span className="font-semibold text-gray-300">Phone Number:</span> {userDetails.phoneNumber}
-      </p>
-      <p>
-        <span className="font-semibold text-gray-300">Address:</span> {userDetails.address}
-      </p>
-    </div>
-  ) : (
-    <p className="text-gray-400">Loading user information...</p>
-  )}
-</div>
+      {/* User Info Section */}
+      <div className="bg-gray-800 p-6 rounded shadow-md mb-6">
+        <h2 className="text-lg font-bold mb-4 text-white">User Information</h2>
+        {userDetails ? (
+          <div className="space-y-2">
+            <p>
+              <span className="font-semibold text-gray-300">First Name:</span> {userDetails.firstName}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-300">Last Name:</span> {userDetails.lastName}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-300">Email:</span> {userDetails.email}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-300">Phone Number:</span> {userDetails.phoneNumber}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-300">Address:</span> {userDetails.address}
+            </p>
+          </div>
+        ) : (
+          <p className="text-gray-400">Loading user information...</p>
+        )}
+      </div>
 
 
       {/* Ticket List Section */}
       <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
-      {isITStaff && (
+        {isITStaff && (
           <div className="mb-4">
             <button
-              onClick={() => {/* Logic to download PDF report */}}
+              onClick={() => {/* Logic to download PDF report */ }}
               className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-green-300"
             >
               View Ticket Report
@@ -303,109 +325,184 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
       <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6">
         {/* Search Section */}
         <div>
-  <h2 className="text-lg font-bold mb-4 text-white">Search Your Ticket by AR Number:</h2>
-  <form className="space-y-4" onSubmit={handleSearch}>
-    <input
-      type="text"
-      placeholder="AR Number"
-      value={searchArNumber}
-      onChange={handleSearchInputChange}
-      className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-    />
-    <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
-      Search
-    </button>
-  </form>
-</div>
+          <h2 className="text-lg font-bold mb-4 text-white">Search Your Ticket by AR Number:</h2>
+          <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
+            <h2 className="text-lg font-bold text-white mb-4">Search Tickets</h2>
+            <form className="grid grid-cols-2 gap-4" onSubmit={handleSearch}>
+              <input
+                type="text"
+                name="arNumber"
+                placeholder="AR Number"
+                value={searchParams.arNumber}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <input
+                type="text"
+                name="severity"
+                placeholder="Severity"
+                value={searchParams.severity}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <input
+                type="text"
+                name="priority"
+                placeholder="Priority"
+                value={searchParams.priority}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <input
+                type="text"
+                name="requestorUsername"
+                placeholder="Requestor Username"
+                value={searchParams.requestorUsername}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <input
+                type="text"
+                name="assigneeUsername"
+                placeholder="Assignee Username"
+                value={searchParams.assigneeUsername}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <input
+                type="text"
+                name="status"
+                placeholder="Status"
+                value={searchParams.status}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <input
+                type="date"
+                name="startDate"
+                value={searchParams.startDate}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <input
+                type="date"
+                name="endDate"
+                value={searchParams.endDate}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <input
+                type="text"
+                name="product"
+                placeholder="Product"
+                value={searchParams.product}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <input
+                type="text"
+                name="subProduct"
+                placeholder="Sub-Product"
+                value={searchParams.subProduct}
+                onChange={handleSearchInputChange}
+                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+              />
+              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 col-span-2">
+                Search
+              </button>
+            </form>
+          </div>
+
+        </div>
 
 
         {/* Create New Ticket Section */}
         <div>
           <h2 className="text-lg font-bold mb-4 text-white">Create a New Ticket</h2>
           <form className="space-y-4" onSubmit={handleCreateTicket}>
-  <input
-    type="text"
-    name="arNumber"
-    placeholder="AR Number"
-    value={formData.arNumber}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
-  <input
-    type="text"
-    name="title"
-    placeholder="Ticket Title"
-    value={formData.title}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
-  <textarea
-    name="description"
-    placeholder="Brief Summary"
-    value={formData.description}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  ></textarea>
-  <input
-    type="text"
-    name="severity"
-    placeholder="Severity"
-    value={formData.severity}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
-  <input
-    type="text"
-    name="priority"
-    placeholder="Priority"
-    value={formData.priority}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
-  <input
-    type="text"
-    name="product"
-    placeholder="Product"
-    value={formData.product}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
-  <input
-    type="text"
-    name="subProduct"
-    placeholder="Sub-Product"
-    value={formData.subProduct}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
-  <input
-    type="text"
-    name="status"
-    placeholder="Status"
-    value={formData.status}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
-  <input
-    type="text"
-    name="assignee"
-    placeholder="Assignee"
-    value={formData.assignee}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
-  <input
-    type="email"
-    name="assigneeEmail"
-    placeholder="Assignee Email"
-    value={formData.assigneeEmail}
-    onChange={handleInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
-  <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
-    Submit
-  </button>
-</form>
+            <input
+              type="text"
+              name="arNumber"
+              placeholder="AR Number"
+              value={formData.arNumber}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            />
+            <input
+              type="text"
+              name="title"
+              placeholder="Ticket Title"
+              value={formData.title}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            />
+            <textarea
+              name="description"
+              placeholder="Brief Summary"
+              value={formData.description}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            ></textarea>
+            <input
+              type="text"
+              name="severity"
+              placeholder="Severity"
+              value={formData.severity}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            />
+            <input
+              type="text"
+              name="priority"
+              placeholder="Priority"
+              value={formData.priority}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            />
+            <input
+              type="text"
+              name="product"
+              placeholder="Product"
+              value={formData.product}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            />
+            <input
+              type="text"
+              name="subProduct"
+              placeholder="Sub-Product"
+              value={formData.subProduct}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            />
+            <input
+              type="text"
+              name="status"
+              placeholder="Status"
+              value={formData.status}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            />
+            <input
+              type="text"
+              name="assignee"
+              placeholder="Assignee"
+              value={formData.assignee}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            />
+            <input
+              type="email"
+              name="assigneeEmail"
+              placeholder="Assignee Email"
+              value={formData.assigneeEmail}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+            />
+            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+              Submit
+            </button>
+          </form>
         </div>
       </div>
     </div>
