@@ -129,7 +129,7 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   setLoading(true);
   try {
-    const response = await fetch(`https://it-support-app-backend.vercel.app/api/tickets?arNumber=${encodeURIComponent(searchArNumber)}`);
+    const response = await fetch(`https://it-support-app-backend.vercel.app/api/search/?arNumber=${encodeURIComponent(searchArNumber)}`);
     if (!response.ok) throw new Error('Failed to fetch tickets');
     const data = await response.json();
     setTickets(data);
