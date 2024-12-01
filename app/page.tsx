@@ -24,7 +24,7 @@ interface Ticket {
 
 // User Info interface
 interface UserDetails {
-  userId:string,
+  userId: string,
   firstName: string;
   lastName: string;
   email: string;
@@ -40,19 +40,6 @@ export default function Dashboard() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Ticket>({
-    arNumber: '',
-    title: '',
-    description: '',
-    severity: '',
-    priority: '',
-    product: '',
-    subProduct: '',
-    status: '',
-    assignee: '',
-    assigneeEmail: ''
-  });
-  const [searchArNumber, setSearchArNumber] = useState('');
   const [searchParams, setSearchParams] = useState({
     arNumber: '',
     severity: '',
@@ -65,21 +52,96 @@ export default function Dashboard() {
     product: '',
     subProduct: ''
   });
+
+  const [formData, setFormData] = useState<{
+    arNumber: string;
+    title: string;
+    description: string;
+    severity: string;
+    priority: string;
+    product: ProductType | '';
+    subProduct: string;
+    status: string;
+    assignee: string;
+    assigneeEmail: string;
+  }>({
+    arNumber: '',
+    title: '',
+    description: '',
+    severity: '',
+    priority: '',
+    product: '',
+    subProduct: '',
+    status: '',
+    assignee: '',
+    assigneeEmail: ''
+  });
+  
+  
+  
   const [isITStaff, setIsITStaff] = useState(false);
+
+  type ProductType = 'About' | 'News' | 'Organization' | 'Activity' | 'Award' | 'Membership';
+
+const productOptions: Record<ProductType, string[]> = {
+  About: [
+    "President’s Message",
+    "Code of Conduct",
+    "Policies",
+    "Bylaws",
+    "Sponsors",
+    "Handbook",
+    "Contact"
+  ],
+  News: [
+    "Announcement",
+    "KSEA Letters",
+    "KSEA e-Letters",
+    "Job Opportunities",
+    "Media"
+  ],
+  Organization: [
+    "Leadership",
+    "Committee",
+    "Technical Group",
+    "Former Presidents",
+    "Local Chapters",
+    "KSEA Councilors",
+    "YG Group",
+    "Affiliated Professional Societies"
+  ],
+  Activity: [
+    "SEED",
+    "UKC",
+    "NMSC",
+    "Katalyst",
+    "IMPACTs",
+    "SET-UP"
+  ],
+  Award: [
+    "Scholarship",
+    "Honors and Awards",
+    "Young Investigator Grants"
+  ],
+  Membership: [
+    "About Membership",
+    "Lifetime Members",
+    "Join Ksea"
+  ]
+};
 
   // Fetch tickets from the backend on load
   useEffect(() => {
     const loadTickets = async () => {
       const sessionDetails = await fetchAuthSession();
       const attributeDetails = await fetchUserAttributes();
-      console.log(attributeDetails);
-      
+
       const userGroups = (sessionDetails.tokens?.accessToken.payload['cognito:groups'] || []) as string[];
       setIsITStaff(userGroups.includes('ITStaff'));
 
       // Structure user details
       const details: UserDetails = {
-        userId:attributeDetails.sub || '',
+        userId: attributeDetails.sub || '',
         firstName: attributeDetails.given_name || '', // Default to an empty string if undefined
         lastName: attributeDetails.family_name || '',
         email: attributeDetails.email || '',
@@ -110,14 +172,32 @@ export default function Dashboard() {
     loadTickets();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
+    setSearchParams((prev) => ({
+      ...prev,
+      userId:userDetails?.userId,
       [name]: value,
     }));
   };
 
+  const handleFormInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleDropdownChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+  
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "product" && { subProduct: "" }) // Reset subProduct if product changes
+    }));
+  };  
 
   // Handle ticket selection
   const handleTicketClick = (ticket: Ticket) => {
@@ -135,15 +215,6 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setSearchParams((prev) => ({
-      ...prev,
-      userId:userDetails?.userId,
-      [name]: value,
-    }));
   };
 
   const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -188,17 +259,17 @@ export default function Dashboard() {
       const newTicket = await response.json();
       setTickets((prevTickets) => [...prevTickets, newTicket]);
       // Reset form fields
-      setFormData({
-        arNumber: '',
-        title: '',
-        description: '',
-        severity: '',
-        priority: '',
-        product: '',
-        subProduct: '',
-        status: '',
-        assignee: '',
-        assigneeEmail: '',
+      setFormData({    
+        arNumber: '',         
+        title: '',            
+        description: '',      
+        severity: '',         
+        priority: '',         
+        product: '',          
+        subProduct: '',       
+        status: '',           
+        assignee: '',         
+        assigneeEmail: ''
       });
     } catch (error) {
       console.error('Error creating ticket:', error);
@@ -312,8 +383,10 @@ export default function Dashboard() {
           </div>
           <div className="mt-4">
             <button
-              onClick={() => router.push(`/detailed-ticket-status?arNumber=${selectedTicket.arNumber}`)}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"
+              onClick={() => router.push(
+                `/detailed-ticket-status?arNumber=${selectedTicket.arNumber}&status=${selectedTicket.status}&priority=${selectedTicket.priority}&severity=${selectedTicket.severity}`
+              )}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"
             >
               View Detailed Ticket Status
             </button>
@@ -324,186 +397,217 @@ export default function Dashboard() {
       {/* Search and Create Ticket Section */}
       <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6">
         {/* Search Section */}
-        <div>
-          <h2 className="text-lg font-bold mb-4 text-white">Search Your Ticket by AR Number:</h2>
-          <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
-            <h2 className="text-lg font-bold text-white mb-4">Search Tickets</h2>
-            <form className="grid grid-cols-2 gap-4" onSubmit={handleSearch}>
-              <input
-                type="text"
-                name="arNumber"
-                placeholder="AR Number"
-                value={searchParams.arNumber}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <input
-                type="text"
-                name="severity"
-                placeholder="Severity"
-                value={searchParams.severity}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <input
-                type="text"
-                name="priority"
-                placeholder="Priority"
-                value={searchParams.priority}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <input
-                type="text"
-                name="requestorUsername"
-                placeholder="Requestor Username"
-                value={searchParams.requestorUsername}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <input
-                type="text"
-                name="assigneeUsername"
-                placeholder="Assignee Username"
-                value={searchParams.assigneeUsername}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <input
-                type="text"
-                name="status"
-                placeholder="Status"
-                value={searchParams.status}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <input
-                type="date"
-                name="startDate"
-                value={searchParams.startDate}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <input
-                type="date"
-                name="endDate"
-                value={searchParams.endDate}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <input
-                type="text"
-                name="product"
-                placeholder="Product"
-                value={searchParams.product}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <input
-                type="text"
-                name="subProduct"
-                placeholder="Sub-Product"
-                value={searchParams.subProduct}
-                onChange={handleSearchInputChange}
-                className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-              />
-              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 col-span-2">
-                Search
-              </button>
-            </form>
-          </div>
-
-        </div>
-
+        <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
+        <h2 className="text-lg font-bold text-white mb-4">Search Tickets</h2>
+        <form className="grid grid-cols-2 gap-4" onSubmit={handleSearch}>
+          <input
+            type="text"
+            name="arNumber"
+            placeholder="AR Number"
+            value={searchParams.arNumber}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          />
+          <select
+            name="severity"
+            value={searchParams.severity}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          >
+            <option value="">Select Severity</option>
+            <option value="1 day">1 day</option>
+            <option value="5 days">5 days</option>
+            <option value="15 days">15 days</option>
+            <option value="45 days">45 days</option>
+          </select>
+          <select
+            name="priority"
+            value={searchParams.priority}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          >
+            <option value="">Select Priority</option>
+            <option value="Very High">Very High</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <input
+            type="text"
+            name="requestorUsername"
+            placeholder="Requestor Username"
+            value={searchParams.requestorUsername}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          />
+          <input
+            type="text"
+            name="assigneeUsername"
+            placeholder="Assignee Username"
+            value={searchParams.assigneeUsername}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          />
+          <select
+            name="status"
+            value={searchParams.status}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          >
+            <option value="">Select Status</option>
+            <option value="Assigned">Assigned</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Pending">Pending</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
+          </select>
+          <input
+            type="date"
+            name="startDate"
+            value={searchParams.startDate}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          />
+          <input
+            type="date"
+            name="endDate"
+            value={searchParams.endDate}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          />
+          <input
+            type="text"
+            name="product"
+            placeholder="Product"
+            value={searchParams.product}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          />
+          <input
+            type="text"
+            name="subProduct"
+            placeholder="Sub-Product"
+            value={searchParams.subProduct}
+            onChange={handleSearchInputChange}
+            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+          />
+          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 col-span-2">
+            Search
+          </button>
+        </form>
+      </div>
 
         {/* Create New Ticket Section */}
-        <div>
-          <h2 className="text-lg font-bold mb-4 text-white">Create a New Ticket</h2>
-          <form className="space-y-4" onSubmit={handleCreateTicket}>
-            <input
-              type="text"
-              name="arNumber"
-              placeholder="AR Number"
-              value={formData.arNumber}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            />
-            <input
-              type="text"
-              name="title"
-              placeholder="Ticket Title"
-              value={formData.title}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            />
-            <textarea
-              name="description"
-              placeholder="Brief Summary"
-              value={formData.description}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            ></textarea>
-            <input
-              type="text"
-              name="severity"
-              placeholder="Severity"
-              value={formData.severity}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            />
-            <input
-              type="text"
-              name="priority"
-              placeholder="Priority"
-              value={formData.priority}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            />
-            <input
-              type="text"
-              name="product"
-              placeholder="Product"
-              value={formData.product}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            />
-            <input
-              type="text"
-              name="subProduct"
-              placeholder="Sub-Product"
-              value={formData.subProduct}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            />
-            <input
-              type="text"
-              name="status"
-              placeholder="Status"
-              value={formData.status}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            />
-            <input
-              type="text"
-              name="assignee"
-              placeholder="Assignee"
-              value={formData.assignee}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            />
-            <input
-              type="email"
-              name="assigneeEmail"
-              placeholder="Assignee Email"
-              value={formData.assigneeEmail}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-            />
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
-              Submit
-            </button>
-          </form>
-        </div>
+       
+  <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
+  <h2 className="text-lg font-bold text-white mb-4">Create a New Ticket</h2>
+  <form className="space-y-4" onSubmit={handleCreateTicket}>
+<input
+    type="text"
+    name="arNumber"
+    placeholder="AR Number"
+    value={formData.arNumber}
+    onChange={handleFormInputChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  />
+
+    {/* Ticket Title */}
+    <input
+      type="text"
+      name="title"
+      placeholder="Ticket Title"
+      value={formData.title}
+      onChange={handleFormInputChange}
+      className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    />
+
+<div>
+  <label className="block text-sm font-semibold text-gray-300">Product</label>
+  <select
+    name="product"
+    value={formData.product}
+    onChange={handleDropdownChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+  >
+    <option value="" disabled>
+      Select a Product
+    </option>
+    {Object.keys(productOptions).map((product) => (
+      <option key={product} value={product}>
+        {product}
+      </option>
+    ))}
+  </select>
+</div>
+
+<div>
+  <label className="block text-sm font-semibold text-gray-300">SubProduct</label>
+  <select
+    name="subProduct"
+    value={formData.subProduct}
+    onChange={handleDropdownChange}
+    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    disabled={!formData.product} // Disable if no product selected
+  >
+    <option value="" disabled>
+      Select a SubProduct
+    </option>
+    {formData.product &&
+      productOptions[formData.product]?.map((subProduct) => (
+        <option key={subProduct} value={subProduct}>
+          {subProduct}
+        </option>
+      ))}
+  </select>
+</div>
+
+
+    {/* Brief Summary */}
+    <textarea
+      name="description"
+      placeholder="Brief Summary"
+      value={formData.description}
+      onChange={handleFormInputChange}
+      className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    ></textarea>
+
+    {/* Severity */}
+    <select
+      name="severity"
+      value={formData.severity}
+      onChange={handleFormInputChange}
+      className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    >
+      <option value="">Select Severity</option>
+      <option value="1 day">1 day</option>
+      <option value="5 days">5 days</option>
+      <option value="15 days">15 days</option>
+      <option value="45 days">45 days</option>
+    </select>
+
+    {/* Priority */}
+    <select
+      name="priority"
+      value={formData.priority}
+      onChange={handleFormInputChange}
+      className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    >
+      <option value="">Select Priority</option>
+      <option value="Very High">Very High</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+    </select>
+
+    {/* Submit Button */}
+    <button
+      type="submit"
+      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"
+    >
+      Submit
+    </button>
+  </form>
+</div>        
       </div>
     </div>
   );
