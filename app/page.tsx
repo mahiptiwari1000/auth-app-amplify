@@ -80,7 +80,7 @@ export default function Dashboard() {
       if (!userId) return; // Ensure userId is available
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:5001/api/tickets?userId=${userId}`);
+        const response = await fetch(`https://it-support-app-backend.vercel.app/api/tickets?userId=${userId}`);
         if (!response.ok) throw new Error('Failed to fetch tickets');
         const data = await response.json();
         setTickets(data);
@@ -129,7 +129,7 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   setLoading(true);
   try {
-    const response = await fetch(`http://localhost:5001/api/tickets?arNumber=${encodeURIComponent(searchArNumber)}`);
+    const response = await fetch(`https://it-support-app-backend.vercel.app/api/tickets?arNumber=${encodeURIComponent(searchArNumber)}`);
     if (!response.ok) throw new Error('Failed to fetch tickets');
     const data = await response.json();
     setTickets(data);
@@ -152,7 +152,7 @@ const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
       return;
     }
     try {
-      const response = await fetch('http://localhost:5001/api/tickets', {
+      const response = await fetch('https://it-support-app-backend.vercel.app/api/tickets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

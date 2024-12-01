@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5001/api/tickets";
+const API_URL = "https://it-support-app-backend.vercel.app/api/tickets";
 
 // Fetch tickets
 export const fetchTickets = async () => {
