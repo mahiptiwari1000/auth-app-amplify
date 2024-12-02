@@ -34,6 +34,11 @@ export default withAuthenticator(Signup, {
                 placeholder: 'Enter your last name',
                 required: true,
             },
+            'custom:state': {
+                label: 'State',
+                placeholder: 'State',
+                required: true,
+            },
             'custom:street_address': {
                 label: 'Mailing Address',
                 placeholder: 'Street Address',
@@ -42,11 +47,6 @@ export default withAuthenticator(Signup, {
             'custom:city': {
                 label: 'City',
                 placeholder: 'City',
-                required: true,
-            },
-            'custom:state': {
-                label: 'State',
-                placeholder: 'State',
                 required: true,
             },
             'custom:zipcode': {
