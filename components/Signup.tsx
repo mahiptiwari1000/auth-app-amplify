@@ -39,11 +39,6 @@ export default withAuthenticator(Signup, {
                 placeholder: 'State',
                 required: true,
             },
-            'custom:street_address': {
-                label: 'Mailing Address',
-                placeholder: 'Street Address',
-                required: true,
-            },
             'custom:city': {
                 label: 'City',
                 placeholder: 'City',
