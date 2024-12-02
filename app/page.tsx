@@ -293,7 +293,7 @@ const productOptions: Record<ProductType, string[]> = {
 
     // Table headers
     const headers = ["AR Number", "Title", "Severity", "Priority", "Status", "Assignee"];
-    let yPosition = 720;
+    const yPosition = 720;
 
     headers.forEach((header, i) => {
       page.drawText(header, {
