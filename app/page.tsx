@@ -302,7 +302,8 @@ const productOptions: Record<ProductType, string[]> = {
     await new Promise((resolve) => setTimeout(resolve, 500));
   
     // Step 3: Convert the chart to a PNG image
-    const chartImage = canvas.toDataURL("image/png");
+    const chartImageBase64 = canvas.toDataURL("image/png").split(",")[1]; // Remove prefix
+    const chartImageBytes = Uint8Array.from(atob(chartImageBase64), (c) => c.charCodeAt(0));
   
     // Step 4: Generate the PDF using pdf-lib
     const pdfDoc = await PDFDocument.create();
@@ -342,7 +343,6 @@ const productOptions: Record<ProductType, string[]> = {
     });
   
     // Embed the chart image into the PDF
-    const chartImageBytes = await fetch(chartImage).then((res) => res.arrayBuffer());
     const chartImageEmbed = await pdfDoc.embedPng(chartImageBytes);
     const chartImageDims = chartImageEmbed.scale(0.5);
   
@@ -362,6 +362,7 @@ const productOptions: Record<ProductType, string[]> = {
     link.download = "ticket_report_with_chart.pdf";
     link.click();
   };
+  
   
 
   return (
