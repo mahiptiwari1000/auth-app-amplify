@@ -9,7 +9,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-
+import { v4 as uuidv4 } from 'uuid'; // For generating a unique AR number
 
 // Ticket interface for backend data
 interface Ticket {
@@ -57,7 +57,6 @@ export default function Dashboard() {
   });
 
   const [formData, setFormData] = useState<{
-    arNumber: string;
     title: string;
     description: string;
     severity: string;
@@ -68,7 +67,6 @@ export default function Dashboard() {
     assignee: string;
     assigneeEmail: string;
   }>({
-    arNumber: '',
     title: '',
     description: '',
     severity: '',
@@ -242,6 +240,7 @@ const productOptions: Record<ProductType, string[]> = {
 
   const handleCreateTicket = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const randomARNumber = `AR-${Date.now()}-${uuidv4()}`; // Generate unique AR number
     const { userId } = await getCurrentUser();
     if (!userId) {
       console.error('User ID is missing');
@@ -253,7 +252,7 @@ const productOptions: Record<ProductType, string[]> = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...formData, userId }),
+        body: JSON.stringify({ ...formData, userId, arNumber: randomARNumber }),
       });
       if (!response.ok) {
         throw new Error('Failed to create ticket');
@@ -262,7 +261,6 @@ const productOptions: Record<ProductType, string[]> = {
       setTickets((prevTickets) => [...prevTickets, newTicket]);
       // Reset form fields
       setFormData({    
-        arNumber: '',         
         title: '',            
         description: '',      
         severity: '',         
@@ -529,14 +527,6 @@ const productOptions: Record<ProductType, string[]> = {
   <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
   <h2 className="text-lg font-bold text-white mb-4">Create a New Ticket</h2>
   <form className="space-y-4" onSubmit={handleCreateTicket}>
-<input
-    type="text"
-    name="arNumber"
-    placeholder="AR Number"
-    value={formData.arNumber}
-    onChange={handleFormInputChange}
-    className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-  />
 
     {/* Ticket Title */}
     <input
