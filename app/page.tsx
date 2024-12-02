@@ -82,7 +82,7 @@ export default function Dashboard() {
   
   
   
-  const [isITStaff, setIsITStaff] = useState(false);
+  const [isITStaff, setIsITStaff] = useState<string | null>(null);
 
   type ProductType = 'About' | 'News' | 'Organization' | 'Activity' | 'Award' | 'Membership';
 
@@ -140,7 +140,7 @@ const productOptions: Record<ProductType, string[]> = {
       const attributeDetails = await fetchUserAttributes();
 
       const userGroups = (sessionDetails.tokens?.accessToken.payload['cognito:groups'] || []) as string[];
-      setIsITStaff(userGroups.includes('ITStaff'));
+      setIsITStaff(userGroups.includes('ITStaff') ? 'ITStaff' : 'User');
 
       // Structure user details
       const details: UserDetails = {
