@@ -151,14 +151,11 @@ const productOptions: Record<ProductType, string[]> = {
       setUserDetails(details);
 
       const { userId } = await getCurrentUser();
-      console.log(userId, "user id");
-      console.log(attributeDetails, "attribute details");
-
 
       if (!userId) return; // Ensure userId is available
       try {
         setLoading(true);
-        const response = await fetch(`https://it-support-app-backend.vercel.app/api/tickets?userId=${userId}`);
+        const response = await fetch(`https://it-support-app-backend.vercel.app/api/tickets?userId=${userId}&role=${userGroups[0]}`);
         if (!response.ok) throw new Error('Failed to fetch tickets');
         const data = await response.json();
         setTickets(data);
