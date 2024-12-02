@@ -19,7 +19,8 @@
     "next": "15.0.3",
     "react": "19.0.0-rc-66855b96-20241106",
     "react-dom": "19.0.0-rc-66855b96-20241106",
-    "react-router-dom": "^7.0.1"
+    "react-router-dom": "^7.0.1",
+    "uuid": "^11.0.3"
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.7.0",
