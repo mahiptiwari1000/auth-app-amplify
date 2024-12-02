@@ -290,52 +290,45 @@ const productOptions: Record<ProductType, string[]> = {
       color: rgb(0, 0, 0),
     });
   
-    // Table Headers
-    const headers = ["Title", "Status", "Assignee"];
-    const headerFontSize = 12;
-    const cellFontSize = 10;
-    const rowHeight = 20;
-    const cellPadding = 5;
-    let startY = 720;
+    // Calculate ticket counts by status
+    const totalTickets = tickets.length;
+    const statusCounts = tickets.reduce((acc, ticket) => {
+      acc[ticket.status] = (acc[ticket.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
   
-    // Draw Headers
-    headers.forEach((header, colIndex) => {
-      page.drawText(header, {
-        x: 50 + colIndex * 80,
-        y: startY,
-        size: headerFontSize,
+    // Display Ticket Summary
+    let yPosition = 700; // Start position for summary
+    const summaryFontSize = 12;
+  
+    // Add total tickets count
+    page.drawText(`Total Tickets: ${totalTickets}`, {
+      x: 50,
+      y: yPosition,
+      size: summaryFontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+  
+    yPosition -= 20;
+  
+    // Add counts for each status
+    Object.entries(statusCounts).forEach(([status, count]) => {
+      page.drawText(`${status}: ${count}`, {
+        x: 50,
+        y: yPosition,
+        size: summaryFontSize,
         font,
         color: rgb(0, 0, 0),
       });
+      yPosition -= 20;
     });
   
-    // Draw Rows
-    tickets.forEach((ticket: Ticket, rowIndex:number) => {
-      const rowY = startY - (rowIndex + 1) * rowHeight;
-  
-      // Ensure row fits on page
-      if (rowY < 50) {
-        page = pdfDoc.addPage([600, 800]);
-        startY = 750; // Reset Y position for new page
-      }
-  
-      const rowData = [
-        ticket.title,
-        ticket.status,
-        ticket.assignee,
-      ];
-  
-      rowData.forEach((data, colIndex) => {
-        const text = String(data || ""); // Fallback for undefined/null values
-        page.drawText(text, {
-          x: 50 + colIndex * 80 + cellPadding,
-          y: rowY,
-          size: cellFontSize,
-          font,
-          color: rgb(0, 0, 0),
-        });
-      });
-    });
+    // Check if there's space for additional rows
+    if (yPosition < 100) {
+      page = pdfDoc.addPage([600, 800]); // Add new page if needed
+      yPosition = 750;
+    }
   
     // Save and download
     const pdfBytes = await pdfDoc.save();
@@ -345,6 +338,7 @@ const productOptions: Record<ProductType, string[]> = {
     link.download = "ticket_report.pdf";
     link.click();
   };
+  
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 space-y-6">
