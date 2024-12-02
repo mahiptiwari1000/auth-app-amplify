@@ -7,9 +7,8 @@ import Image from 'next/image';
 import { getCurrentUser } from 'aws-amplify/auth';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { fetchUserAttributes } from 'aws-amplify/auth';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { v4 as uuidv4 } from 'uuid'; // For generating a unique AR number
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 // Ticket interface for backend data
 interface Ticket {
@@ -276,30 +275,68 @@ const productOptions: Record<ProductType, string[]> = {
     }
   };
 
-  const generatePDFReport = () => {
-    const doc = new jsPDF();
+  const generatePDF = async () => {
+    const pdfDoc = await PDFDocument.create();
 
-    // Add a title
-    doc.setFontSize(18);
-    doc.text('Ticket Report', 14, 15);
+    const page = pdfDoc.addPage([600, 800]);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // Add a table with tickets
-    // doc.autoTable({
-    //   startY: 25,
-    //   head: [['AR Number', 'Title', 'Severity', 'Priority', 'Status', 'Assignee']],
-    //   body: tickets.map((ticket) => [
-    //     ticket.arNumber,
-    //     ticket.title,
-    //     ticket.severity,
-    //     ticket.priority,
-    //     ticket.status,
-    //     ticket.assignee,
-    //   ]),
-    // });
+    // Set the header
+    const title = "Ticket Report";
+    page.drawText(title, {
+      x: 50,
+      y: 750,
+      size: 20,
+      font,
+      color: rgb(0, 0, 0),
+    });
 
-    // Save the PDF
-    doc.save('ticket_report.pdf');
+    // Table headers
+    const headers = ["AR Number", "Title", "Severity", "Priority", "Status", "Assignee"];
+    let yPosition = 720;
+
+    headers.forEach((header, i) => {
+      page.drawText(header, {
+        x: 50 + i * 80,
+        y: yPosition,
+        size: 12,
+        font,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+    });
+
+    // Draw table rows
+    tickets.forEach((ticket, rowIndex) => {
+      const rowY = yPosition - 20 - rowIndex * 20;
+      const rowData = [
+        ticket.arNumber,
+        ticket.title,
+        ticket.severity,
+        ticket.priority,
+        ticket.status,
+        ticket.assignee,
+      ];
+
+      rowData.forEach((data, colIndex) => {
+        page.drawText(data, {
+          x: 50 + colIndex * 80,
+          y: rowY,
+          size: 10,
+          font,
+          color: rgb(0, 0, 0),
+        });
+      });
+    });
+
+    // Serialize the PDF document to bytes and trigger a download
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: "application/pdf" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "ticket_report.pdf";
+    link.click();
   };
+  
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 space-y-6">
