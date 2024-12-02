@@ -7,6 +7,9 @@ import Image from 'next/image';
 import { getCurrentUser } from 'aws-amplify/auth';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { fetchUserAttributes } from 'aws-amplify/auth';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
 
 // Ticket interface for backend data
 interface Ticket {
@@ -219,7 +222,9 @@ const productOptions: Record<ProductType, string[]> = {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams(searchParams).toString();
-      const response = await fetch(`https://it-support-app-backend.vercel.app/api/search?${queryParams}`);
+      console.log();
+      
+      const response = await fetch(`https://it-support-app-backend.vercel.app/api/search?${queryParams}&role=${isITStaff}`);
 
       if (!response.ok) throw new Error('Failed to fetch tickets');
       const data = await response.json();
@@ -271,6 +276,31 @@ const productOptions: Record<ProductType, string[]> = {
     } catch (error) {
       console.error('Error creating ticket:', error);
     }
+  };
+
+  const generatePDFReport = () => {
+    const doc = new jsPDF();
+
+    // Add a title
+    doc.setFontSize(18);
+    doc.text('Ticket Report', 14, 15);
+
+    // Add a table with tickets
+    // doc.autoTable({
+    //   startY: 25,
+    //   head: [['AR Number', 'Title', 'Severity', 'Priority', 'Status', 'Assignee']],
+    //   body: tickets.map((ticket) => [
+    //     ticket.arNumber,
+    //     ticket.title,
+    //     ticket.severity,
+    //     ticket.priority,
+    //     ticket.status,
+    //     ticket.assignee,
+    //   ]),
+    // });
+
+    // Save the PDF
+    doc.save('ticket_report.pdf');
   };
 
   return (
@@ -331,7 +361,7 @@ const productOptions: Record<ProductType, string[]> = {
         {isITStaff && (
           <div className="mb-4">
             <button
-              onClick={() => {/* Logic to download PDF report */ }}
+              onClick={generatePDFReport}
               className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-green-300"
             >
               View Ticket Report
