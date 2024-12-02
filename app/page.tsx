@@ -275,13 +275,12 @@ const productOptions: Record<ProductType, string[]> = {
     }
   };
 
-  const generatePDF = async () => {
+  const generatePDFReport = async (tickets: Ticket[]) => {
     const pdfDoc = await PDFDocument.create();
-
-    const page = pdfDoc.addPage([600, 800]);
+    let page = pdfDoc.addPage([600, 800]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    // Set the header
+  
+    // Title
     const title = "Ticket Report";
     page.drawText(title, {
       x: 50,
@@ -290,24 +289,36 @@ const productOptions: Record<ProductType, string[]> = {
       font,
       color: rgb(0, 0, 0),
     });
-
-    // Table headers
+  
+    // Table Headers
     const headers = ["AR Number", "Title", "Severity", "Priority", "Status", "Assignee"];
-    const yPosition = 720;
-
-    headers.forEach((header, i) => {
+    const headerFontSize = 12;
+    const cellFontSize = 10;
+    const rowHeight = 20;
+    const cellPadding = 5;
+    let startY = 720;
+  
+    // Draw Headers
+    headers.forEach((header, colIndex) => {
       page.drawText(header, {
-        x: 50 + i * 80,
-        y: yPosition,
-        size: 12,
+        x: 50 + colIndex * 80,
+        y: startY,
+        size: headerFontSize,
         font,
-        color: rgb(0.2, 0.2, 0.2),
+        color: rgb(0, 0, 0),
       });
     });
-
-    // Draw table rows
-    tickets.forEach((ticket, rowIndex) => {
-      const rowY = yPosition - 20 - rowIndex * 20;
+  
+    // Draw Rows
+    tickets.forEach((ticket: Ticket, rowIndex:number) => {
+      const rowY = startY - (rowIndex + 1) * rowHeight;
+  
+      // Ensure row fits on page
+      if (rowY < 50) {
+        page = pdfDoc.addPage([600, 800]);
+        startY = 750; // Reset Y position for new page
+      }
+  
       const rowData = [
         ticket.arNumber,
         ticket.title,
@@ -316,19 +327,20 @@ const productOptions: Record<ProductType, string[]> = {
         ticket.status,
         ticket.assignee,
       ];
-
+  
       rowData.forEach((data, colIndex) => {
-        page.drawText(data, {
-          x: 50 + colIndex * 80,
+        const text = String(data || ""); // Fallback for undefined/null values
+        page.drawText(text, {
+          x: 50 + colIndex * 80 + cellPadding,
           y: rowY,
-          size: 10,
+          size: cellFontSize,
           font,
           color: rgb(0, 0, 0),
         });
       });
     });
-
-    // Serialize the PDF document to bytes and trigger a download
+  
+    // Save and download
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: "application/pdf" });
     const link = document.createElement("a");
@@ -336,7 +348,6 @@ const productOptions: Record<ProductType, string[]> = {
     link.download = "ticket_report.pdf";
     link.click();
   };
-  
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 space-y-6">
@@ -396,7 +407,7 @@ const productOptions: Record<ProductType, string[]> = {
         {isITStaff && (
           <div className="mb-4">
             <button
-              onClick={generatePDF}
+              onClick={() => generatePDFReport(tickets)}
               className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-green-300"
             >
               View Ticket Report
