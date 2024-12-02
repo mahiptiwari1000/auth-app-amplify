@@ -9,6 +9,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { v4 as uuidv4 } from 'uuid'; // For generating a unique AR number
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import Chart from "chart.js/auto";
 
 // Ticket interface for backend data
 interface Ticket {
@@ -276,8 +277,36 @@ const productOptions: Record<ProductType, string[]> = {
   };
 
   const generatePDFReport = async (tickets: Ticket[]) => {
+    // Step 1: Calculate ticket counts by status
+    const statusCounts = tickets.reduce((acc, ticket) => {
+      acc[ticket.status] = (acc[ticket.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+  
+    // Step 2: Create a pie chart using Chart.js
+    const canvas = document.createElement("canvas");
+    new Chart(canvas, {
+      type: "pie",
+      data: {
+        labels: Object.keys(statusCounts),
+        datasets: [
+          {
+            data: Object.values(statusCounts),
+            backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0"],
+          },
+        ],
+      },
+    });
+  
+    // Wait for the chart to render
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  
+    // Step 3: Convert the chart to a PNG image
+    const chartImage = canvas.toDataURL("image/png");
+  
+    // Step 4: Generate the PDF using pdf-lib
     const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage([600, 800]);
+    const page = pdfDoc.addPage([600, 800]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   
     // Title
@@ -290,52 +319,47 @@ const productOptions: Record<ProductType, string[]> = {
       color: rgb(0, 0, 0),
     });
   
-    // Calculate ticket counts by status
-    const totalTickets = tickets.length;
-    const statusCounts = tickets.reduce((acc, ticket) => {
-      acc[ticket.status] = (acc[ticket.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-  
-    // Display Ticket Summary
-    let yPosition = 700; // Start position for summary
-    const summaryFontSize = 12;
-  
-    // Add total tickets count
-    page.drawText(`Total Tickets: ${totalTickets}`, {
+    // Total Tickets Summary
+    let yPosition = 700;
+    page.drawText(`Total Tickets: ${tickets.length}`, {
       x: 50,
       y: yPosition,
-      size: summaryFontSize,
+      size: 12,
       font,
       color: rgb(0, 0, 0),
     });
-  
     yPosition -= 20;
   
-    // Add counts for each status
     Object.entries(statusCounts).forEach(([status, count]) => {
       page.drawText(`${status}: ${count}`, {
         x: 50,
         y: yPosition,
-        size: summaryFontSize,
+        size: 12,
         font,
         color: rgb(0, 0, 0),
       });
       yPosition -= 20;
     });
   
-    // Check if there's space for additional rows
-    if (yPosition < 100) {
-      page = pdfDoc.addPage([600, 800]); // Add new page if needed
-      yPosition = 750;
-    }
+    // Embed the chart image into the PDF
+    const chartImageBytes = await fetch(chartImage).then((res) => res.arrayBuffer());
+    const chartImageEmbed = await pdfDoc.embedPng(chartImageBytes);
+    const chartImageDims = chartImageEmbed.scale(0.5);
   
-    // Save and download
+    // Add chart to the PDF
+    page.drawImage(chartImageEmbed, {
+      x: 50,
+      y: 400,
+      width: chartImageDims.width,
+      height: chartImageDims.height,
+    });
+  
+    // Save and download the PDF
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: "application/pdf" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "ticket_report.pdf";
+    link.download = "ticket_report_with_chart.pdf";
     link.click();
   };
   
