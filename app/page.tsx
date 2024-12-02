@@ -291,7 +291,7 @@ const productOptions: Record<ProductType, string[]> = {
     });
   
     // Table Headers
-    const headers = ["AR Number", "Title", "Severity", "Priority", "Status", "Assignee"];
+    const headers = ["Title", "Status", "Assignee"];
     const headerFontSize = 12;
     const cellFontSize = 10;
     const rowHeight = 20;
@@ -320,10 +320,7 @@ const productOptions: Record<ProductType, string[]> = {
       }
   
       const rowData = [
-        ticket.arNumber,
         ticket.title,
-        ticket.severity,
-        ticket.priority,
         ticket.status,
         ticket.assignee,
       ];
