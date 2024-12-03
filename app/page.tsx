@@ -9,6 +9,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { v4 as uuidv4 } from 'uuid'; // For generating a unique AR number
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import OpenAI from "openai";
 
 // Ticket interface for backend data
 interface Ticket {
@@ -43,6 +44,8 @@ export default function Dashboard() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiSuggestions, setAISuggestions] = useState<string[]>([]);
+  const [loadingAI, setLoadingAI] = useState(false);
   const [searchParams, setSearchParams] = useState({
     arNumber: '',
     severity: '',
@@ -55,6 +58,11 @@ export default function Dashboard() {
     product: '',
     subProduct: ''
   });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const toggleModal = () => {
+    setIsModalOpen((prev) => !prev);
+  };
 
   const [formData, setFormData] = useState<{
     title: string;
@@ -131,6 +139,12 @@ const productOptions: Record<ProductType, string[]> = {
   ]
 };
 
+const openai = new OpenAI({
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY, // Ensure this is set in your .env file
+  dangerouslyAllowBrowser: true
+});
+
+
   // Fetch tickets from the backend on load
   useEffect(() => {
     const loadTickets = async () => {
@@ -163,7 +177,7 @@ const productOptions: Record<ProductType, string[]> = {
       const ticketsWithAssignees = data.map((ticket:Ticket) => ({
         ...ticket,
         assigneeName: assigneeNames[Math.floor(Math.random() * assigneeNames.length)], // Randomize once
-      }));
+      }));      
 
       setTickets(ticketsWithAssignees);
       } catch (error) {
@@ -198,6 +212,33 @@ const productOptions: Record<ProductType, string[]> = {
 
     return () => clearInterval(interval);
   }, [tickets]);
+
+    // Function to ask AI for better titles
+    const handleAskAI = async (ticket: Ticket) => {
+      toggleModal();
+      setLoadingAI(true);
+      setAISuggestions([]);
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            { role: "system", content: "You are an AI assistant suggesting better solutions related to the ticket title and description." },
+            { role: "user", content: `Suggest better solutions for the following ticket:\n\nTitle: "${ticket.title}"\nDescription: "${ticket.description}"` },
+          ],
+          max_tokens: 100,
+        });
+  
+        const suggestions = response.choices
+        .map((choice) => choice.message?.content?.trim())
+        .filter((content): content is string => Boolean(content)); // Ensures only non-null strings are included
+          setAISuggestions(suggestions || []);
+      } catch (error) {
+        console.error("Error fetching AI suggestions:", error);
+        setAISuggestions(["Failed to fetch suggestions. Please try again later."]);
+      } finally {
+        setLoadingAI(false);
+      }
+    };  
 
   const parseSeverity = (severity: string): number | null => {
     const match = severity.match(/(\d+)\s*(seconds|minutes|hours|days)/);
@@ -627,23 +668,65 @@ const productOptions: Record<ProductType, string[]> = {
 
   return (
     <div
-      key={ticket.arNumber}
-      className={`flex items-center justify-between p-4 rounded mb-2 shadow cursor-pointer ${
-        isEscalated ? 'bg-red-700 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
-      }`}
-      onClick={() => handleTicketClick(ticket)}
+  key={ticket.arNumber}
+  className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded mb-2 shadow cursor-pointer ${
+    isEscalated ? 'bg-red-700 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
+  }`}
+  onClick={() => handleTicketClick(ticket)}
+>
+  <div className="w-full sm:w-3/4">
+    <p className="font-semibold text-white mb-1">{ticket.title}</p>
+    <p className="text-sm text-gray-300 mb-1">{ticket.description}</p>
+    <p className="text-sm text-gray-300 mb-1">Assignee: {ticket.assigneeName}</p>
+    {isEscalated && (
+      <p className="text-sm text-yellow-400 font-semibold">
+        This ticket has been escalated!
+      </p>
+    )}
+  </div>
+  <div className="w-full sm:w-1/4 flex items-center sm:justify-end mt-2 sm:mt-0">
+    <p className="text-sm text-gray-400 mr-4">{ticket.status}</p>
+    <button
+      onClick={(e) => {
+        e.stopPropagation(); // Prevents triggering onClick of parent
+        handleAskAI(ticket);
+      }}
+      className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-500"
     >
-      <div>
-        <p className="font-semibold text-white">{ticket.title}</p>
-        <p className="text-sm text-gray-300">{ticket.description}</p>
-        <p className="text-sm text-gray-300">Assignee: {ticket.assigneeName}</p>
-        {isEscalated && <p className="text-sm text-yellow-400">This ticket has been escalated!</p>}
-      </div>
-      <p className="text-sm text-gray-400">{ticket.status}</p>
-    </div>
+      Ask AI
+    </button>
+  </div>
+</div>
   );
 })}
       </div>
+
+      {/* AI Suggestions Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded shadow-lg w-96">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white">AI Suggestions</h3>
+              <button
+                onClick={toggleModal}
+                className="text-gray-300 hover:text-white text-xl font-bold"
+              >
+                &times;
+              </button>
+            </div>
+            {loadingAI ? (
+              <div className="flex justify-center items-center h-40">
+                <div className="w-8 h-8 border-4 border-t-4 border-gray-200 rounded-full animate-spin"></div>
+              </div>
+            ) : (
+            <ul className="list-disc list-inside text-gray-300">
+              {aiSuggestions.map((suggestion, index) => (
+                <li key={index}>{suggestion}</li>
+              ))}
+            </ul>)}
+          </div>
+        </div>
+      )}
 
       {/* Ticket Info Section */}
       {selectedTicket && (
