@@ -23,6 +23,7 @@ interface Ticket {
   assignee: string;
   assigneeEmail: string;
   assigneeName:string;
+  updatedAt:any;
 }
 
 // User Info interface
@@ -35,9 +36,9 @@ interface UserDetails {
   address: string;
 }
 
-
 export default function Dashboard() {
   const router = useRouter();
+  const [escalatedTickets, setEscalatedTickets] = useState<Set<string>>(new Set()); // AR numbers of escalated tickets
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]); // Tickets from the backend
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -175,6 +176,55 @@ const productOptions: Record<ProductType, string[]> = {
 
     loadTickets();
   }, []);
+
+  useEffect(() => {
+    const checkEscalation = () => {
+      const now = Date.now();
+      const newEscalatedTickets = new Set<string>();
+
+      tickets.forEach((ticket) => {
+        const severityDuration = parseSeverity(ticket.severity);
+        if (severityDuration && now - ticket.updatedAt > severityDuration) {
+          newEscalatedTickets.add(ticket.arNumber);
+        }
+      });
+
+      console.log(newEscalatedTickets);
+       
+
+      setEscalatedTickets(newEscalatedTickets);
+    };
+
+    checkEscalation();
+    const interval = setInterval(checkEscalation, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [tickets]);
+
+  const parseSeverity = (severity: string): number | null => {
+    const match = severity.match(/(\d+)\s*(seconds|minutes|hours|days)/);
+    if (!match) return null;
+
+    const value = parseInt(match[1], 10);
+    console.log(value,"value");
+    
+    const unit = match[2];
+
+    console.log(unit,"unit");
+    
+    switch (unit) {
+      case 'seconds':
+        return value * 1000;
+      case 'minutes':
+        return value * 60 * 1000;
+      case 'hours':
+        return value * 60 * 60 * 1000;
+      case 'days':
+        return value * 24 * 60 * 60 * 1000;
+      default:
+        return null;
+    }
+  };
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -551,23 +601,55 @@ const productOptions: Record<ProductType, string[]> = {
           </div>
         )}
         <h2 className="text-lg font-bold mb-4 text-white">Your Tickets</h2>
-        {tickets.map((ticket) => {  
+       
+        {tickets.map((ticket) => {
+  // Check if the ticket needs escalation
+  const updatedAtTimestamp = new Date(ticket.updatedAt).getTime();
+
+  const now = Date.now();
+  const parseSeverity = (severity: string): number | null => {
+    const match = severity.match(/(\d+)\s*(seconds|minutes|hours|days)/);
+    if (!match) return null;
+
+    const value = parseInt(match[1], 10);
+  
+    const unit = match[2];
+    
+    switch (unit) {
+      case 'seconds':
+        return value * 1000;
+      case 'minutes':
+        return value * 60 * 1000;
+      case 'hours':
+        return value * 60 * 60 * 1000;
+      case 'days':
+        return value * 24 * 60 * 60 * 1000;
+      default:
+        return null;
+    }
+  };
+
+  const severityDuration = parseSeverity(ticket.severity);
+  const isEscalated = severityDuration && (now - updatedAtTimestamp > severityDuration);
+
   return (
     <div
       key={ticket.arNumber}
-      className="flex items-center justify-between p-4 bg-gray-700 rounded mb-2 shadow cursor-pointer hover:bg-gray-600"
+      className={`flex items-center justify-between p-4 rounded mb-2 shadow cursor-pointer ${
+        isEscalated ? 'bg-red-700 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'
+      }`}
       onClick={() => handleTicketClick(ticket)}
     >
       <div>
         <p className="font-semibold text-white">{ticket.title}</p>
         <p className="text-sm text-gray-300">{ticket.description}</p>
         <p className="text-sm text-gray-300">Assignee: {ticket.assigneeName}</p>
+        {isEscalated && <p className="text-sm text-yellow-400">This ticket has been escalated!</p>}
       </div>
       <p className="text-sm text-gray-400">{ticket.status}</p>
     </div>
   );
 })}
-
       </div>
 
       {/* Ticket Info Section */}
@@ -628,10 +710,10 @@ const productOptions: Record<ProductType, string[]> = {
       className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
     >
       <option value="">Select Severity</option>
-      <option value="1 day">1 day</option>
-      <option value="5 days">5 days</option>
-      <option value="15 days">15 days</option>
-      <option value="45 days">45 days</option>
+      <option value="60seconds">60seconds</option>
+      <option value="120seconds">120seconds</option>
+      <option value="150seconds">150seconds</option>
+      <option value="180seconds">180seconds</option>
     </select>
     <select
       name="priority"
@@ -811,10 +893,10 @@ const productOptions: Record<ProductType, string[]> = {
       className="w-full p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
     >
       <option value="">Select Severity</option>
-      <option value="1 day">1 day</option>
-      <option value="5 days">5 days</option>
-      <option value="15 days">15 days</option>
-      <option value="45 days">45 days</option>
+      <option value="60seconds">60seconds</option>
+      <option value="120seconds">120seconds</option>
+      <option value="150seconds">150seconds</option>
+      <option value="180seconds">180seconds</option>
     </select>
 
     {/* Priority */}
