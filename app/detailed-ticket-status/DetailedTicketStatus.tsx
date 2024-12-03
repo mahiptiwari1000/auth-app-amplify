@@ -31,6 +31,28 @@ export default function DetailedTicketStatus() {
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isITStaff, setIsITStaff] = useState(false);
+  const [ticketDetails, setTicketDetails] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Fetch ticket details
+  const fetchTicketDetails = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `https://it-support-app-backend.vercel.app/api/ticketdetails?arNumber=${arNumber}&userId=${userDetails?.userId}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch ticket details');
+      const data = await response.json();
+      setTicketDetails(data[0]);
+      setDescription(data[0]?.description || '');
+      setProgressLog(data[0]?.progressLog || []);
+      setResolutionNotes(data[0]?.resolutionNotes || '');
+    } catch (error) {
+      console.error('Error fetching ticket details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fetch user details and role
   useEffect(() => {
@@ -56,6 +78,13 @@ export default function DetailedTicketStatus() {
 
     fetchUserRole();
   }, []);
+
+  // Fetch ticket details after user details are fetched
+  useEffect(() => {
+    if (arNumber && userDetails?.userId) {
+      fetchTicketDetails();
+    }
+  }, [arNumber, userDetails?.userId]);
 
   // Handle status change and log
   const handleStatusChange = (newStatus: string) => {
@@ -93,6 +122,7 @@ export default function DetailedTicketStatus() {
 
       if (response.ok) {
         alert('Ticket details saved successfully!');
+        fetchTicketDetails(); // Re-fetch ticket details after saving
       } else {
         const errorData = await response.json();
         alert(`Failed to save ticket details: ${errorData.error}`);
@@ -116,30 +146,37 @@ export default function DetailedTicketStatus() {
           </button>
         </header>
 
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <ReadOnlyField label="AR Number" value={arNumber} />
-          <DropdownField label="Status" value={status} onChange={handleStatusChange} options={['Assigned', 'In Progress', 'Pending', 'Resolved', 'Closed']} />
-          <ReadOnlyField label="Priority" value={priority} />
-          <ReadOnlyField label="Severity" value={severity} />
-        </div>
+        {loading ? (
+          <p className="text-center text-gray-400">Loading...</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <ReadOnlyField label="AR Number" value={arNumber} />
+              <DropdownField label="Status" value={status} onChange={handleStatusChange} options={['Assigned', 'In Progress', 'Pending', 'Resolved', 'Closed']} />
+              <ReadOnlyField label="Priority" value={priority} />
+              <ReadOnlyField label="Severity" value={severity} />
+            </div>
 
-        <TextAreaField label="Description" value={description} onChange={(value) => setDescription(value)} />
-        <FileUploadField label="Attach an Image" file={selectedFile} onFileChange={handleFileChange} />
-        <TextAreaField label="Progress Log" value={progressLog.join('\n')} readOnly />
+            <TextAreaField label="Description" value={description} onChange={(value) => setDescription(value)} />
+            <FileUploadField label="Attach an Image" file={selectedFile} onFileChange={handleFileChange} />
+            <TextAreaField label="Progress Log" value={progressLog.join('\n')} readOnly />
 
-        {isITStaff && (
-          <TextAreaField label="Resolution Notes" value={resolutionNotes} onChange={(value) => setResolutionNotes(value)} />
+            {isITStaff && (
+              <TextAreaField label="Resolution Notes" value={resolutionNotes} onChange={(value) => setResolutionNotes(value)} />
+            )}
+
+            <div className="flex justify-end">
+              <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
+                Save
+              </button>
+            </div>
+          </>
         )}
-
-        <div className="flex justify-end">
-          <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
-            Save
-          </button>
-        </div>
       </div>
     </div>
   );
 }
+
 
 interface FieldProps {
   label: string;
