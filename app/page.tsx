@@ -9,7 +9,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { v4 as uuidv4 } from 'uuid'; // For generating a unique AR number
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import Chart from "chart.js/auto";
+import * as d3 from "d3";
 
 // Ticket interface for backend data
 interface Ticket {
@@ -131,6 +131,22 @@ const productOptions: Record<ProductType, string[]> = {
   ]
 };
 
+// Function to transform tickets into pie chart data
+const transformTicketsToChartData = (tickets: Ticket[]) => {
+  // Use a Map to group by status and count occurrences
+  const statusCounts = tickets.reduce((acc, ticket) => {
+    acc[ticket.status] = (acc[ticket.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Convert the grouped data into an array format
+  return Object.entries(statusCounts).map(([status, count]) => ({
+    status,
+    count,
+  }));
+};
+
+
   // Fetch tickets from the backend on load
   useEffect(() => {
     const loadTickets = async () => {
@@ -159,6 +175,7 @@ const productOptions: Record<ProductType, string[]> = {
         const response = await fetch(`https://it-support-app-backend.vercel.app/api/tickets?userId=${userId}&role=${userGroups[0]}`);
         if (!response.ok) throw new Error('Failed to fetch tickets');
         const data = await response.json();
+       const convertedData = transformTicketsToChartData(data);
         setTickets(data);
       } catch (error) {
         console.error('Error loading tickets:', error);
@@ -276,42 +293,13 @@ const productOptions: Record<ProductType, string[]> = {
     }
   };
 
-  const generatePDFReport = async (tickets: Ticket[]) => {
-    // Step 1: Calculate ticket counts by status
-    const statusCounts = tickets.reduce((acc, ticket) => {
-      acc[ticket.status] = (acc[ticket.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-  
-    // Step 2: Create a pie chart using Chart.js
-    const canvas = document.createElement("canvas");
-    new Chart(canvas, {
-      type: "pie",
-      data: {
-        labels: Object.keys(statusCounts),
-        datasets: [
-          {
-            data: Object.values(statusCounts),
-            backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0"],
-          },
-        ],
-      },
-    });
-  
-    // Wait for the chart to render
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  
-    // Step 3: Convert the chart to a PNG image
-    const chartImageBase64 = canvas.toDataURL("image/png").split(",")[1]; // Remove prefix
-    const chartImageBytes = Uint8Array.from(atob(chartImageBase64), (c) => c.charCodeAt(0));
-  
-    // Step 4: Generate the PDF using pdf-lib
+  const generatePDFWithChart = async () => {
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([600, 800]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  
-    // Title
-    const title = "Ticket Report";
+
+    // Add title
+    const title = 'Ticket Status Report';
     page.drawText(title, {
       x: 50,
       y: 750,
@@ -319,51 +307,64 @@ const productOptions: Record<ProductType, string[]> = {
       font,
       color: rgb(0, 0, 0),
     });
-  
-    // Total Tickets Summary
-    let yPosition = 700;
-    page.drawText(`Total Tickets: ${tickets.length}`, {
+
+    // Count tickets by status
+    const statusCounts = tickets.reduce<Record<string, number>>((counts, ticket) => {
+      counts[ticket.status] = (counts[ticket.status] || 0) + 1;
+      return counts;
+    }, {});
+
+    const totalTickets = tickets.length;
+
+    // Prepare pie chart data
+    const pieData = Object.entries(statusCounts).map(([status, count]) => ({
+      label: status,
+      value: count,
+      percentage: ((count / totalTickets) * 100).toFixed(2),
+    }));
+
+    // Draw pie chart as text (optional visual chart tools can replace this logic)
+    page.drawText('Ticket Status Distribution:', {
       x: 50,
-      y: yPosition,
-      size: 12,
+      y: 700,
+      size: 14,
       font,
       color: rgb(0, 0, 0),
     });
-    yPosition -= 20;
-  
-    Object.entries(statusCounts).forEach(([status, count]) => {
-      page.drawText(`${status}: ${count}`, {
+
+    let chartStartY = 680;
+    pieData.forEach((data) => {
+      const label = `${data.label}: ${data.value} (${data.percentage}%)`;
+      page.drawText(label, {
         x: 50,
-        y: yPosition,
+        y: chartStartY,
         size: 12,
         font,
         color: rgb(0, 0, 0),
       });
-      yPosition -= 20;
+      chartStartY -= 20; // Adjust vertical spacing
     });
-  
-    // Embed the chart image into the PDF
-    const chartImageEmbed = await pdfDoc.embedPng(chartImageBytes);
-    const chartImageDims = chartImageEmbed.scale(0.5);
-  
-    // Add chart to the PDF
-    page.drawImage(chartImageEmbed, {
+
+    // Add summary
+    const summaryY = chartStartY - 20;
+    page.drawText(`Total Tickets: ${totalTickets}`, {
       x: 50,
-      y: 400,
-      width: chartImageDims.width,
-      height: chartImageDims.height,
+      y: summaryY,
+      size: 14,
+      font,
+      color: rgb(0, 0, 0),
     });
-  
-    // Save and download the PDF
+
+    // Save PDF and trigger download
     const pdfBytes = await pdfDoc.save();
-    const blob = new Blob([pdfBytes], { type: "application/pdf" });
-    const link = document.createElement("a");
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = "ticket_report_with_chart.pdf";
+    link.download = 'ticket_status_report.pdf';
     link.click();
   };
-  
-  
+
+
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 space-y-6">
@@ -423,7 +424,7 @@ const productOptions: Record<ProductType, string[]> = {
         {isITStaff && (
           <div className="mb-4">
             <button
-              onClick={() => generatePDFReport(tickets)}
+              onClick={generatePDFWithChart}
               className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-green-300"
             >
               View Ticket Report
