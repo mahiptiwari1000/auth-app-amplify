@@ -9,7 +9,6 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { v4 as uuidv4 } from 'uuid'; // For generating a unique AR number
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import * as d3 from "d3";
 
 // Ticket interface for backend data
 interface Ticket {
@@ -131,22 +130,6 @@ const productOptions: Record<ProductType, string[]> = {
   ]
 };
 
-// Function to transform tickets into pie chart data
-const transformTicketsToChartData = (tickets: Ticket[]) => {
-  // Use a Map to group by status and count occurrences
-  const statusCounts = tickets.reduce((acc, ticket) => {
-    acc[ticket.status] = (acc[ticket.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  // Convert the grouped data into an array format
-  return Object.entries(statusCounts).map(([status, count]) => ({
-    status,
-    count,
-  }));
-};
-
-
   // Fetch tickets from the backend on load
   useEffect(() => {
     const loadTickets = async () => {
@@ -175,7 +158,6 @@ const transformTicketsToChartData = (tickets: Ticket[]) => {
         const response = await fetch(`https://it-support-app-backend.vercel.app/api/tickets?userId=${userId}&role=${userGroups[0]}`);
         if (!response.ok) throw new Error('Failed to fetch tickets');
         const data = await response.json();
-       const convertedData = transformTicketsToChartData(data);
         setTickets(data);
       } catch (error) {
         console.error('Error loading tickets:', error);
