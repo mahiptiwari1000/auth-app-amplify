@@ -44,6 +44,11 @@ export default withAuthenticator(Signup, {
                 placeholder: 'City',
                 required: true,
             },
+            'custom:address': {
+                label: 'Address',
+                placeholder: 'Address',
+                required: true,
+            },
             'custom:zipcode': {
                 label: 'Zipcode',
                 placeholder: 'Zipcode',

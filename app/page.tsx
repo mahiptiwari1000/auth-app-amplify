@@ -388,7 +388,7 @@ const productOptions: Record<ProductType, string[]> = {
 
       {/* Ticket List Section */}
       <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
-        {isITStaff && (
+        {isITStaff === 'ITStaff' && (
           <div className="mb-4">
             <button
               onClick={generatePDFReport}
