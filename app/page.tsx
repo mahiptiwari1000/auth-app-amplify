@@ -23,7 +23,7 @@ interface Ticket {
   assignee: string;
   assigneeEmail: string;
   assigneeName:string;
-  updatedAt:any;
+  updatedAt:number;
 }
 
 // User Info interface
@@ -38,7 +38,6 @@ interface UserDetails {
 
 export default function Dashboard() {
   const router = useRouter();
-  const [escalatedTickets, setEscalatedTickets] = useState<Set<string>>(new Set()); // AR numbers of escalated tickets
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]); // Tickets from the backend
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -184,15 +183,14 @@ const productOptions: Record<ProductType, string[]> = {
 
       tickets.forEach((ticket) => {
         const severityDuration = parseSeverity(ticket.severity);
-        if (severityDuration && now - ticket.updatedAt > severityDuration) {
+        if (
+          ticket.status === "In Progress" &&
+          severityDuration &&
+          now - ticket.updatedAt > severityDuration
+        ) {
           newEscalatedTickets.add(ticket.arNumber);
         }
       });
-
-      console.log(newEscalatedTickets);
-       
-
-      setEscalatedTickets(newEscalatedTickets);
     };
 
     checkEscalation();
