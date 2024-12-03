@@ -204,11 +204,8 @@ const productOptions: Record<ProductType, string[]> = {
     if (!match) return null;
 
     const value = parseInt(match[1], 10);
-    console.log(value,"value");
-    
     const unit = match[2];
 
-    console.log(unit,"unit");
     
     switch (unit) {
       case 'seconds':
@@ -282,9 +279,7 @@ const productOptions: Record<ProductType, string[]> = {
     e.preventDefault();
     setLoading(true);
     try {
-      const queryParams = new URLSearchParams(searchParams).toString();
-      console.log();
-      
+      const queryParams = new URLSearchParams(searchParams).toString();      
       const response = await fetch(`https://it-support-app-backend.vercel.app/api/search?${queryParams}&role=${isITStaff}`);
 
       if (!response.ok) throw new Error('Failed to fetch tickets');
