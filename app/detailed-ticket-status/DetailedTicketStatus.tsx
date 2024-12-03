@@ -19,7 +19,8 @@ export default function DetailedTicketStatus() {
 
   // Extract query parameters
   const arNumber = searchParams.get('arNumber') || '';
-  const initialStatus = searchParams.get('status') || '';
+  const initialStatus = searchParams.get('status') || 'Assigned';
+  const title = searchParams.get('title') || '';
   const priority = searchParams.get('priority') || '';
   const severity = searchParams.get('severity') || '';
 
@@ -28,31 +29,39 @@ export default function DetailedTicketStatus() {
   const [status, setStatus] = useState(initialStatus);
   const [description, setDescription] = useState('');
   const [resolutionNotes, setResolutionNotes] = useState('');
-  const [progressLog, setProgressLog] = useState<string[]>([]);
+  const [progressLog, setProgressLog] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isITStaff, setIsITStaff] = useState(false);
-  const [ticketDetails, setTicketDetails] = useState<any>(null);
+  const [isITStaff, setIsITStaff] = useState('');
   const [loading, setLoading] = useState<boolean>(true);
+  const [statusOptions, setStatusOptions] = useState<string[]>([]);
 
   // Fetch ticket details
   const fetchTicketDetails = async () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://it-support-app-backend.vercel.app/api/ticketdetails?arNumber=${arNumber}&userId=${userDetails?.userId}`
+        `https://it-support-app-backend.vercel.app/api/tickets?arNumber=${arNumber}&userId=${userDetails?.userId}&role=${isITStaff}`
       );
       if (!response.ok) throw new Error('Failed to fetch ticket details');
       const data = await response.json();
-      setTicketDetails(data[0]);
-      setDescription(data[0]?.description || '');
-      setProgressLog(data[0]?.progressLog || []);
-      setResolutionNotes(data[0]?.resolutionNotes || '');
+      const ticket = data[0] || {};
+      setDescription(ticket.description || '');
+      setProgressLog(ticket.progressLog || ''); // Ensure progressLog is a string
+      setResolutionNotes(ticket.resolutionNotes || '');
     } catch (error) {
       console.error('Error fetching ticket details:', error);
     } finally {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+    setStatusOptions(
+      isITStaff === 'ITStaff'
+        ? ['Assigned', 'In Progress', 'Pending', 'Resolved', 'Closed']
+        : ['Assigned', 'Closed']
+    );
+  }, [isITStaff]); 
 
   // Fetch user details and role
   useEffect(() => {
@@ -62,7 +71,7 @@ export default function DetailedTicketStatus() {
         const attributeDetails = await fetchUserAttributes();
         const userGroups = (sessionDetails.tokens?.accessToken.payload['cognito:groups'] || []) as string[];
 
-        setIsITStaff(userGroups.includes('ITStaff'));
+        setIsITStaff(userGroups.includes('ITStaff') ? 'ITStaff' : 'User');
         setUserDetails({
           userId: attributeDetails.sub || '',
           firstName: attributeDetails.given_name || '',
@@ -79,6 +88,7 @@ export default function DetailedTicketStatus() {
     fetchUserRole();
   }, []);
 
+  
   // Fetch ticket details after user details are fetched
   useEffect(() => {
     if (arNumber && userDetails?.userId) {
@@ -86,14 +96,13 @@ export default function DetailedTicketStatus() {
     }
   }, [arNumber, userDetails?.userId]);
 
-  // Handle status change and log
   const handleStatusChange = (newStatus: string) => {
     const timestamp = new Date().toLocaleString();
-    setProgressLog((prevLog) => [...prevLog, `[${timestamp}] Status changed to "${newStatus}".`]);
+    const newLogEntry = `[${timestamp}] Status changed to "${newStatus}".`;
+    setProgressLog((prevLog) => prevLog ? `${prevLog}\n${newLogEntry}` : newLogEntry);
     setStatus(newStatus);
   };
-
-  // Handle file selection
+  
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       setSelectedFile(event.target.files[0]);
@@ -104,17 +113,18 @@ export default function DetailedTicketStatus() {
   const handleSave = async () => {
     const ticketData = {
       arNumber,
+      title,
       status,
       priority,
       severity,
       description,
       progressLog,
-      resolutionNotes: isITStaff ? resolutionNotes : undefined,
+      resolutionNotes: isITStaff === 'ITStaff' ? resolutionNotes : undefined,
       userId: userDetails?.userId,
-    };
+    };    
 
     try {
-      const response = await fetch('https://it-support-app-backend.vercel.app/api/ticketdetails', {
+      const response = await fetch('https://it-support-app-backend.vercel.app/api/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ticketData),
@@ -122,7 +132,7 @@ export default function DetailedTicketStatus() {
 
       if (response.ok) {
         alert('Ticket details saved successfully!');
-        fetchTicketDetails(); // Re-fetch ticket details after saving
+        fetchTicketDetails();
       } else {
         const errorData = await response.json();
         alert(`Failed to save ticket details: ${errorData.error}`);
@@ -132,6 +142,9 @@ export default function DetailedTicketStatus() {
       alert('An error occurred while saving ticket details.');
     }
   };
+
+
+  
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6">
@@ -152,19 +165,17 @@ export default function DetailedTicketStatus() {
           <>
             <div className="grid grid-cols-2 gap-4 mb-6">
               <ReadOnlyField label="AR Number" value={arNumber} />
-              <DropdownField label="Status" value={status} onChange={handleStatusChange} options={['Assigned', 'In Progress', 'Pending', 'Resolved', 'Closed']} />
+              <ReadOnlyField label="Title" value={title} />
+              <DropdownField label="Status" value={status} onChange={handleStatusChange} options={statusOptions} />
               <ReadOnlyField label="Priority" value={priority} />
               <ReadOnlyField label="Severity" value={severity} />
             </div>
-
             <TextAreaField label="Description" value={description} onChange={(value) => setDescription(value)} />
             <FileUploadField label="Attach an Image" file={selectedFile} onFileChange={handleFileChange} />
-            <TextAreaField label="Progress Log" value={progressLog.join('\n')} readOnly />
-
-            {isITStaff && (
+            <TextAreaField label="Progress Log" value={progressLog} readOnly />
+            {isITStaff === 'ITStaff' && (
               <TextAreaField label="Resolution Notes" value={resolutionNotes} onChange={(value) => setResolutionNotes(value)} />
             )}
-
             <div className="flex justify-end">
               <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500">
                 Save
@@ -176,7 +187,6 @@ export default function DetailedTicketStatus() {
     </div>
   );
 }
-
 
 interface FieldProps {
   label: string;

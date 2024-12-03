@@ -22,6 +22,7 @@ interface Ticket {
   status: string;
   assignee: string;
   assigneeEmail: string;
+  assigneeName:string;
 }
 
 // User Info interface
@@ -158,7 +159,13 @@ const productOptions: Record<ProductType, string[]> = {
         const response = await fetch(`https://it-support-app-backend.vercel.app/api/tickets?userId=${userId}&role=${userGroups[0]}`);
         if (!response.ok) throw new Error('Failed to fetch tickets');
         const data = await response.json();
-        setTickets(data);
+         // Add a random Assignee Name to each ticket
+      const ticketsWithAssignees = data.map((ticket:Ticket) => ({
+        ...ticket,
+        assigneeName: assigneeNames[Math.floor(Math.random() * assigneeNames.length)], // Randomize once
+      }));
+
+      setTickets(ticketsWithAssignees);
       } catch (error) {
         console.error('Error loading tickets:', error);
       } finally {
@@ -197,7 +204,7 @@ const productOptions: Record<ProductType, string[]> = {
   };  
 
   // Handle ticket selection
-  const handleTicketClick = (ticket: Ticket) => {
+  const handleTicketClick = (ticket: Ticket) => {    
     setSelectedTicket(ticket);
   };
 
@@ -260,7 +267,12 @@ const productOptions: Record<ProductType, string[]> = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...formData, userId, arNumber: randomARNumber }),
+        body: JSON.stringify({
+          ...formData,
+          userId,
+          arNumber: randomARNumber,
+          status: 'Assigned', // Default status
+        }),
       });
       if (!response.ok) {
         throw new Error('Failed to create ticket');
@@ -286,53 +298,182 @@ const productOptions: Record<ProductType, string[]> = {
 
   const generatePDFReport = async () => {
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([600, 800]);
+    let page = pdfDoc.addPage([600, 800]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    // Title
+  
+    const marginLeft = 50;
+    const marginTop = 750;
+    const rowHeight = 20;
+    const columnWidths = [150, 150, 150, 100]; // Column widths: Title, Status, Priority
+    const fontSize = 12;
+  
+    let currentY = marginTop;
+  
+    // Report Header with Introductory Text
     const title = 'Ticket Summary Report';
+    const subtitle = 'Overview of Tickets and Their Status';
+    const generatedDate = new Date().toLocaleString();
+    const organizationName = 'IT Support Department';
+    const introText = `This report provides a comprehensive overview of the ticket activity managed by the ${organizationName}. It highlights ticket priorities, statuses, and key details for effective tracking and management of ongoing tasks and issues. The report is generated to assist in analyzing the resolution workflow and ensuring timely resolution of all reported tickets.`;
+  
+    // Title
     page.drawText(title, {
-      x: 50,
-      y: 750,
+      x: marginLeft,
+      y: currentY,
       size: 20,
       font,
       color: rgb(0, 0, 0),
     });
-
-    // Count tickets by status
-    const statusCounts = tickets.reduce<Record<string, number>>((counts, ticket) => {
-      counts[ticket.status] = (counts[ticket.status] || 0) + 1;
-      return counts;
-    }, {});
-
-    const totalTickets = tickets.length;
-
-    // Ticket Summary
-    const summaryYStart = 700;
-    let summaryY = summaryYStart;
-    const summaryFontSize = 14;
-
-    page.drawText(`Total Tickets: ${totalTickets}`, {
-      x: 50,
-      y: summaryY,
-      size: summaryFontSize,
+    currentY -= 20;
+  
+    // Subtitle
+    page.drawText(subtitle, {
+      x: marginLeft,
+      y: currentY,
+      size: 14,
       font,
-      color: rgb(0, 0, 0),
+      color: rgb(0.3, 0.3, 0.3),
     });
-
-    summaryY -= 30;
-
-    Object.entries(statusCounts).forEach(([status, count]) => {
-      page.drawText(`${status}: ${count}`, {
-        x: 50,
-        y: summaryY,
-        size: summaryFontSize,
+    currentY -= 20;
+  
+    // Generated Date
+    page.drawText(`Generated on: ${generatedDate}`, {
+      x: marginLeft,
+      y: currentY,
+      size: 10,
+      font,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+    currentY -= 30;
+  
+    // Introduction Text
+    const lineHeight = 14;
+  
+    const introLines = introText.split(/(?<=\.)\s+/); // Split into sentences for better formatting
+    introLines.forEach((line) => {
+      if (currentY <= 50) {
+        // Add a new page if needed
+        page = pdfDoc.addPage([600, 800]);
+        currentY = marginTop;
+      }
+  
+      page.drawText(line, {
+        x: marginLeft,
+        y: currentY,
+        size: 10,
         font,
         color: rgb(0, 0, 0),
       });
-      summaryY -= 20;
+      currentY -= lineHeight;
     });
-
+  
+    currentY -= 30; // Add some space before the next section
+  
+    // Summary Section
+    const totalTickets = tickets.length;
+    const priorityCounts = tickets.reduce<Record<string, number>>((counts, ticket) => {
+      counts[ticket.priority] = (counts[ticket.priority] || 0) + 1;
+      return counts;
+    }, {});    
+  
+    page.drawText(`Total Tickets: ${totalTickets}`, {
+      x: marginLeft,
+      y: currentY,
+      size: fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+    currentY -= rowHeight;
+  
+    Object.entries(priorityCounts).forEach(([priority, count]) => {
+      page.drawText(`Priority ${priority}: ${count}`, {
+        x: marginLeft,
+        y: currentY,
+        size: fontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      currentY -= rowHeight;
+    });
+  
+    currentY -= 20; // Add some spacing before the table
+  
+    // Table Header
+    const headers = ['Title', 'Status', 'Priority'];
+    headers.forEach((header, index) => {
+      page.drawText(header, {
+        x: marginLeft + columnWidths.slice(0, index).reduce((a, b) => a + b, 0),
+        y: currentY,
+        size: fontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    });
+  
+    // Draw Horizontal Line Below Header
+    currentY -= 5;
+    page.drawLine({
+      start: { x: marginLeft, y: currentY },
+      end: { x: marginLeft + columnWidths.reduce((a, b) => a + b, 0), y: currentY },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    currentY -= rowHeight;
+  
+    // Table Rows
+    tickets.forEach((ticket) => {
+      if (currentY <= 50) {
+        // Add a new page if the current page is full
+        page = pdfDoc.addPage([600, 800]);
+        currentY = marginTop;
+      }
+  
+      const columns = [
+        ticket.title || 'N/A',
+        ticket.status || 'N/A',
+        ticket.priority || 'N/A',
+      ];
+  
+      columns.forEach((text, index) => {
+        page.drawText(text, {
+          x: marginLeft + columnWidths.slice(0, index).reduce((a, b) => a + b, 0),
+          y: currentY,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
+      });
+  
+      // Draw Horizontal Line Below Row
+      currentY -= rowHeight;
+      page.drawLine({
+        start: { x: marginLeft, y: currentY },
+        end: { x: marginLeft + columnWidths.reduce((a, b) => a + b, 0), y: currentY },
+        thickness: 0.5,
+        color: rgb(0.7, 0.7, 0.7),
+      });
+    });
+  
+    // Footer Section
+    const footerText = 'Generated by Ticket Management System';
+    const footerY = 30;
+  
+    page.drawText(footerText, {
+      x: marginLeft,
+      y: footerY,
+      size: 10,
+      font,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+  
+    page.drawText(`Generated on: ${generatedDate}`, {
+      x: marginLeft,
+      y: footerY - 10,
+      size: 10,
+      font,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+  
     // Save PDF and download
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -341,6 +482,8 @@ const productOptions: Record<ProductType, string[]> = {
     link.download = 'ticket_summary_report.pdf';
     link.click();
   };
+
+  const assigneeNames = ["Mahip", "Hansika"];
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 space-y-6">
@@ -408,19 +551,23 @@ const productOptions: Record<ProductType, string[]> = {
           </div>
         )}
         <h2 className="text-lg font-bold mb-4 text-white">Your Tickets</h2>
-        {tickets.map((ticket) => (
-          <div
-            key={ticket.arNumber}
-            className="flex items-center justify-between p-4 bg-gray-700 rounded mb-2 shadow cursor-pointer hover:bg-gray-600"
-            onClick={() => handleTicketClick(ticket)}
-          >
-            <div>
-              <p className="font-semibold text-white">{ticket.title}</p>
-              <p className="text-sm text-gray-300">{ticket.description}</p>
-            </div>
-            <p className="text-sm text-gray-400">{ticket.status}</p>
-          </div>
-        ))}
+        {tickets.map((ticket) => {  
+  return (
+    <div
+      key={ticket.arNumber}
+      className="flex items-center justify-between p-4 bg-gray-700 rounded mb-2 shadow cursor-pointer hover:bg-gray-600"
+      onClick={() => handleTicketClick(ticket)}
+    >
+      <div>
+        <p className="font-semibold text-white">{ticket.title}</p>
+        <p className="text-sm text-gray-300">{ticket.description}</p>
+        <p className="text-sm text-gray-300">Assignee: {ticket.assigneeName}</p>
+      </div>
+      <p className="text-sm text-gray-400">{ticket.status}</p>
+    </div>
+  );
+})}
+
       </div>
 
       {/* Ticket Info Section */}
@@ -450,7 +597,7 @@ const productOptions: Record<ProductType, string[]> = {
           <div className="mt-4">
             <button
               onClick={() => router.push(
-                `/detailed-ticket-status?arNumber=${selectedTicket.arNumber}&status=${selectedTicket.status}&priority=${selectedTicket.priority}&severity=${selectedTicket.severity}`
+                `/detailed-ticket-status?arNumber=${selectedTicket.arNumber}&status=${selectedTicket.status}&priority=${selectedTicket.priority}&severity=${selectedTicket.severity}&title=${encodeURIComponent(selectedTicket.title)}`
               )}
                 className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500"
             >
