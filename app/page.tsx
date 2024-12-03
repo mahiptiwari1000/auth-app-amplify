@@ -293,13 +293,13 @@ const transformTicketsToChartData = (tickets: Ticket[]) => {
     }
   };
 
-  const generatePDFWithChart = async () => {
+  const generatePDFReport = async () => {
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([600, 800]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // Add title
-    const title = 'Ticket Status Report';
+    // Title
+    const title = 'Ticket Summary Report';
     page.drawText(title, {
       x: 50,
       y: 750,
@@ -316,55 +316,40 @@ const transformTicketsToChartData = (tickets: Ticket[]) => {
 
     const totalTickets = tickets.length;
 
-    // Prepare pie chart data
-    const pieData = Object.entries(statusCounts).map(([status, count]) => ({
-      label: status,
-      value: count,
-      percentage: ((count / totalTickets) * 100).toFixed(2),
-    }));
+    // Ticket Summary
+    const summaryYStart = 700;
+    let summaryY = summaryYStart;
+    const summaryFontSize = 14;
 
-    // Draw pie chart as text (optional visual chart tools can replace this logic)
-    page.drawText('Ticket Status Distribution:', {
-      x: 50,
-      y: 700,
-      size: 14,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    let chartStartY = 680;
-    pieData.forEach((data) => {
-      const label = `${data.label}: ${data.value} (${data.percentage}%)`;
-      page.drawText(label, {
-        x: 50,
-        y: chartStartY,
-        size: 12,
-        font,
-        color: rgb(0, 0, 0),
-      });
-      chartStartY -= 20; // Adjust vertical spacing
-    });
-
-    // Add summary
-    const summaryY = chartStartY - 20;
     page.drawText(`Total Tickets: ${totalTickets}`, {
       x: 50,
       y: summaryY,
-      size: 14,
+      size: summaryFontSize,
       font,
       color: rgb(0, 0, 0),
     });
 
-    // Save PDF and trigger download
+    summaryY -= 30;
+
+    Object.entries(statusCounts).forEach(([status, count]) => {
+      page.drawText(`${status}: ${count}`, {
+        x: 50,
+        y: summaryY,
+        size: summaryFontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      summaryY -= 20;
+    });
+
+    // Save PDF and download
     const pdfBytes = await pdfDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'ticket_status_report.pdf';
+    link.download = 'ticket_summary_report.pdf';
     link.click();
   };
-
-
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 space-y-6">
@@ -424,7 +409,7 @@ const transformTicketsToChartData = (tickets: Ticket[]) => {
         {isITStaff && (
           <div className="mb-4">
             <button
-              onClick={generatePDFWithChart}
+              onClick={generatePDFReport}
               className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-green-300"
             >
               View Ticket Report
