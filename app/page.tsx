@@ -940,7 +940,7 @@ const openai = new OpenAI({
     disabled={!formData.product} // Disable if no product selected
   >
     <option value="" disabled>
-      Select a SubProduct
+      Select SubProduct
     </option>
     {formData.product &&
       productOptions[formData.product]?.map((subProduct) => (
