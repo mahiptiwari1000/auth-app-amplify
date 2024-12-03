@@ -214,6 +214,15 @@ const productOptions: Record<ProductType, string[]> = {
     }
   };
 
+  const handleSearchDropdownChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setSearchParams((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "product" && { subProduct: "" }) // Reset Sub-Product if Product changes
+    }));
+  };  
+
   const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -455,104 +464,131 @@ const productOptions: Record<ProductType, string[]> = {
       <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6">
         {/* Search Section */}
         <div className="bg-gray-800 p-6 rounded shadow-md max-w-4xl mx-auto">
-        <h2 className="text-lg font-bold text-white mb-4">Search Tickets</h2>
-        <form className="grid grid-cols-2 gap-4" onSubmit={handleSearch}>
-          <input
-            type="text"
-            name="arNumber"
-            placeholder="AR Number"
-            value={searchParams.arNumber}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          />
-          <select
-            name="severity"
-            value={searchParams.severity}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          >
-            <option value="">Select Severity</option>
-            <option value="1 day">1 day</option>
-            <option value="5 days">5 days</option>
-            <option value="15 days">15 days</option>
-            <option value="45 days">45 days</option>
-          </select>
-          <select
-            name="priority"
-            value={searchParams.priority}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          >
-            <option value="">Select Priority</option>
-            <option value="Very High">Very High</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Low">Low</option>
-          </select>
-          <input
-            type="text"
-            name="requestorUsername"
-            placeholder="Requestor Username"
-            value={searchParams.requestorUsername}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          />
-          <input
-            type="text"
-            name="assigneeUsername"
-            placeholder="Assignee Username"
-            value={searchParams.assigneeUsername}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          />
-          <select
-            name="status"
-            value={searchParams.status}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          >
-            <option value="">Select Status</option>
-            <option value="Assigned">Assigned</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Pending">Pending</option>
-            <option value="Resolved">Resolved</option>
-            <option value="Closed">Closed</option>
-          </select>
-          <input
-            type="date"
-            name="startDate"
-            value={searchParams.startDate}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          />
-          <input
-            type="date"
-            name="endDate"
-            value={searchParams.endDate}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          />
-          <input
-            type="text"
-            name="product"
-            placeholder="Product"
-            value={searchParams.product}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          />
-          <input
-            type="text"
-            name="subProduct"
-            placeholder="Sub-Product"
-            value={searchParams.subProduct}
-            onChange={handleSearchInputChange}
-            className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
-          />
-          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 col-span-2">
-            Search
-          </button>
-        </form>
-      </div>
+  <h2 className="text-lg font-bold text-white mb-4">Search Tickets</h2>
+  <form className="grid grid-cols-2 gap-4" onSubmit={handleSearch}>
+    <input
+      type="text"
+      name="arNumber"
+      placeholder="AR Number"
+      value={searchParams.arNumber}
+      onChange={handleSearchInputChange}
+      className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    />
+    <select
+      name="severity"
+      value={searchParams.severity}
+      onChange={handleSearchInputChange}
+      className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    >
+      <option value="">Select Severity</option>
+      <option value="1 day">1 day</option>
+      <option value="5 days">5 days</option>
+      <option value="15 days">15 days</option>
+      <option value="45 days">45 days</option>
+    </select>
+    <select
+      name="priority"
+      value={searchParams.priority}
+      onChange={handleSearchInputChange}
+      className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    >
+      <option value="">Select Priority</option>
+      <option value="Very High">Very High</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+    </select>
+    <input
+      type="text"
+      name="requestorUsername"
+      placeholder="Requestor Username"
+      value={searchParams.requestorUsername}
+      onChange={handleSearchInputChange}
+      className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    />
+    <input
+      type="text"
+      name="assigneeUsername"
+      placeholder="Assignee Username"
+      value={searchParams.assigneeUsername}
+      onChange={handleSearchInputChange}
+      className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    />
+    <select
+      name="status"
+      value={searchParams.status}
+      onChange={handleSearchInputChange}
+      className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    >
+      <option value="">Select Status</option>
+      <option value="Assigned">Assigned</option>
+      <option value="In Progress">In Progress</option>
+      <option value="Pending">Pending</option>
+      <option value="Resolved">Resolved</option>
+      <option value="Closed">Closed</option>
+    </select>
+    <input
+      type="date"
+      name="startDate"
+      value={searchParams.startDate}
+      onChange={handleSearchInputChange}
+      className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    />
+    <input
+      type="date"
+      name="endDate"
+      value={searchParams.endDate}
+      onChange={handleSearchInputChange}
+      className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+    />
+
+    {/* Product Dropdown */}
+    <div>
+      <label className="block text-sm font-semibold text-gray-300">Product</label>
+      <select
+        name="product"
+        value={searchParams.product}
+        onChange={handleSearchDropdownChange}
+        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+      >
+        <option value="" disabled>
+          Select a Product
+        </option>
+        {Object.keys(productOptions).map((product) => (
+          <option key={product} value={product}>
+            {product}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* Sub-Product Dropdown */}
+    <div>
+      <label className="block text-sm font-semibold text-gray-300">Sub-Product</label>
+      <select
+        name="subProduct"
+        value={searchParams.subProduct}
+        onChange={handleSearchDropdownChange}
+        className="p-2 border border-gray-700 bg-gray-700 text-gray-100 rounded"
+        disabled={!searchParams.product} // Disable if no product selected
+      >
+        <option value="" disabled>
+          Select a Sub-Product
+        </option>
+        {searchParams.product && productOptions[searchParams.product as ProductType]?.map((subProduct) => (
+  <option key={subProduct} value={subProduct}>
+    {subProduct}
+  </option>
+))}
+      </select>
+    </div>
+
+    <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 col-span-2">
+      Search
+    </button>
+  </form>
+</div>
+
 
         {/* Create New Ticket Section */}
        

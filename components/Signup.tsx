@@ -44,7 +44,7 @@ export default withAuthenticator(Signup, {
                 placeholder: 'City',
                 required: true,
             },
-            'custom:address': {
+            'custom:street_address': {
                 label: 'Address',
                 placeholder: 'Address',
                 required: true,
