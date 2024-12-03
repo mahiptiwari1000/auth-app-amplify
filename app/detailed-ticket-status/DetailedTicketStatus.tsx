@@ -71,7 +71,7 @@ export default function DetailedTicketStatus() {
         const attributeDetails = await fetchUserAttributes();
         const userGroups = (sessionDetails.tokens?.accessToken.payload['cognito:groups'] || []) as string[];
 
-        setIsITStaff(userGroups.includes('ITStaff') ? 'ITStaff' : 'User');
+        setIsITStaff(userGroups.includes('ITStaff') ? 'ITStaff' : 'Users');
         setUserDetails({
           userId: attributeDetails.sub || '',
           firstName: attributeDetails.given_name || '',

@@ -138,7 +138,7 @@ const productOptions: Record<ProductType, string[]> = {
       const attributeDetails = await fetchUserAttributes();
 
       const userGroups = (sessionDetails.tokens?.accessToken.payload['cognito:groups'] || []) as string[];
-      setIsITStaff(userGroups.includes('ITStaff') ? 'ITStaff' : 'User');
+      setIsITStaff(userGroups.includes('ITStaff') ? 'ITStaff' : 'Users');
 
       // Structure user details
       const details: UserDetails = {
